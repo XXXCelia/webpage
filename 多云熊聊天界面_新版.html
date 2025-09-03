@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>多云熊聊天界面</title>
+<style>
+:root{
+    --scale-factor:1;
+    --base-desktop:16px;
+    --base-mobile:14px;
+    --base-small:12px
+}
+
+html{
+    font-size:calc(var(--base-desktop)*var(--scale-factor))
+}
+
+@media (max-width:480px){
+    html{font-size:calc(var(--base-mobile)*var(--scale-factor))}
+}
+
+@media (max-width:360px){
+    html{font-size:calc(var(--base-small)*var(--scale-factor))}
+}
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:rgba(0,0,0,0);
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;
+    user-select:none
+}
+
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    background:#f0f0f0;
+}
+
+.phone-container{
+    width:min(100%,22.5rem);
+    aspect-ratio:9/16.5;
+    border:.75rem solid #f8d7da;
+    border-radius:3rem;
+    background-color:#f5f5f5;
+    position:relative;
+    margin:.9375rem;
+    box-shadow:0 0 20px rgba(0,0,0,.1);
+    display:flex;
+}
+
+.phone-charm{
+    position:absolute;
+    top:-0.75rem;
+    right:-2.8125rem;
+    width:10.625rem;
+    height:10.625rem;
+    background-image:url("https://files.catbox.moe/7ozygy.gif");
+    background-size:contain;
+    background-repeat:no-repeat;
+    z-index:1000;
+    pointer-events:none;
+}
+
+.phone-notch{
+    position:absolute;
+    top:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:10rem;
+    height:.8125rem;
+    background:#363636;
+    border-bottom-left-radius:.75rem;
+    border-bottom-right-radius:.75rem;
+    z-index:999;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:.5rem;
+}
+
+.notch-camera,.notch-sensor{
+    width:.5rem;
+    height:.5rem;
+    background:#222;
+    border-radius:50%;
+    border:2px solid #444;
+}
+
+.notch-sensor{
+    width:.375rem;
+    height:.375rem;
+    border:1px solid #444;
+}
+
+.notch-speaker{
+    width:2.5rem;
+    height:.25rem;
+    background:#222;
+    border-radius:2px;
+}
+
+.interface-container{
+    width:100%;
+    height:100%;
+    border-radius:2.25rem;
+    overflow:hidden;
+    position:relative;
+    font-family:-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN",sans-serif;
+}
+
+/* 桌面界面样式 */
+.desktop-interface{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    z-index:1;
+    background-image:url("https://files.catbox.moe/o84j4n.jpg");
+    background-size:cover;
+    background-position:center;
+    border-radius:1.5rem;
+    overflow:hidden;
+    display:block;
+}
+
+.desktop-interface.hidden{
+    display:none;
+}
+
+.desktop-status-bar{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:1.5rem;
+    background:rgba(0,0,0,.5);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 1rem;
+    color:#fff;
+    font-size:.75rem;
+    z-index:1;
+}
+
+.desktop-status-bar .status-bar-left{
+    display:flex;
+    align-items:center;
+    gap:.25rem;
+}
+
+.desktop-status-bar .status-bar-right{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+}
+
+.desktop-status-bar .status-icon-svg{
+    width:1rem;
+    height:1rem;
+    fill:#fff;
+}
+
+.desktop-content{
+    width:100%;
+    height:calc(100% - 1.5rem);
+    position:relative;
+    top:1.5rem;
+    padding:2rem 1.5rem;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    gap:2rem;
+}
+
+.desktop-icons{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:1.5rem;
+    width:100%;
+    max-width:300px;
+    margin-top:1rem;
+}
+
+.desktop-icon{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:.5rem;
+    cursor:pointer;
+    transition:transform .2s ease;
+    padding:.5rem;
+    border-radius:1rem;
+}
+
+.desktop-icon:hover{
+    transform:scale(1.1);
+    background:rgba(255,255,255,.1);
+}
+
+.desktop-icon:active{
+    transform:scale(0.95);
+}
+
+.desktop-icon-image{
+    width:3.5rem;
+    height:3.5rem;
+    border-radius:1rem;
+    background:linear-gradient(135deg, #4CAF50, #45a049);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:1.8rem;
+    box-shadow:0 4px 12px rgba(0,0,0,.3);
+    border:2px solid rgba(255,255,255,.2);
+}
+
+.desktop-icon-image.wechat{
+    background:linear-gradient(135deg, #1aad19, #00d100);
+}
+
+.desktop-icon-image.settings{
+    background:linear-gradient(135deg, #6c8cd5, #4a6fbf);
+}
+
+.desktop-icon-label{
+    font-size:.75rem;
+    color:#fff;
+    font-weight:500;
+    text-shadow:0 1px 2px rgba(0,0,0,.5);
+}
+
+/* 微信界面容器 */
+.wechat-container{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    z-index:10;
+    display:none;
+    border-radius:1.5rem;
+    overflow:hidden;
+}
+
+.wechat-container.active{
+    display:block;
+}
+
+/* 聊天列表界面 */
+.chat-list-interface{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    z-index:3;
+    display:block;
+    background-image:url("https://files.catbox.moe/o84j4n.jpg");
+    background-size:cover;
+    background-position:center;
+    border-radius:1.5rem;
+    overflow:hidden;
+}
+
+.chat-list-interface.hidden{
+    display:none;
+}
+
+.chat-list-interface .status-bar{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:1.5rem;
+    background:rgba(0,0,0,.5);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 1rem;
+    color:#fff;
+    font-size:.75rem;
+    z-index:1;
+}
+
+.chat-list-interface .status-bar .status-bar-left{
+    display:flex;
+    align-items:center;
+    gap:.25rem;
+}
+
+.chat-list-interface .status-bar .status-bar-right{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+}
+
+.chat-list-interface .status-bar .status-icon-svg{
+    width:1rem;
+    height:1rem;
+    fill:#fff;
+}
+
+.chat-list-header{
+    height:3rem;
+    background:rgba(255,255,255,.9);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 1rem;
+    position:relative;
+    top:1.5rem;
+    z-index:2;
+}
+
+.desktop-btn{
+    background:rgba(108,140,213,.1);
+    color:#6c8cd5;
+    border:1px solid rgba(108,140,213,.3);
+    padding:.5rem 1rem;
+    border-radius:.5rem;
+    cursor:pointer;
+    font-size:.875rem;
+    font-weight:500;
+    transition:all .2s ease;
+}
+
+.desktop-btn:hover{
+    background:rgba(108,140,213,.2);
+    border-color:rgba(108,140,213,.5);
+    transform:translateY(-1px);
+}
+
+.chat-list-title{
+    font-size:1.125rem;
+    font-weight:600;
+    color:#333;
+    text-align:center;
+    flex:1;
+}
+
+.chat-list-content{
+    width:100%;
+    height:calc(100% - 1.5rem - 3rem - 3.125rem);
+    background:hsla(0,0%,100%,.9);
+    background-blend-mode:overlay;
+    overflow-y:auto;
+    position:relative;
+    top:1.5rem;
+}
+
+.chat-list-content::-webkit-scrollbar{
+    width:6px;
+}
+
+.chat-list-content::-webkit-scrollbar-track{
+    background:rgba(0,0,0,0);
+}
+
+.chat-list-content::-webkit-scrollbar-thumb{
+    background:rgba(0,0,0,.1);
+    border-radius:.1875rem;
+}
+
+/* 个人资料界面 */
+.profile-interface{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    z-index:3;
+    display:none;
+    background-image:url("https://files.catbox.moe/o84j4n.jpg");
+    background-size:cover;
+    background-position:center;
+    border-radius:1.5rem;
+    overflow:hidden;
+}
+
+.profile-interface.active{
+    display:block;
+}
+
+.profile-interface .status-bar{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:1.5rem;
+    background:rgba(0,0,0,.5);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:0 1rem;
+    color:#fff;
+    font-size:.75rem;
+    z-index:1;
+}
+
+.profile-interface .status-bar .status-bar-left{
+    display:flex;
+    align-items:center;
+    gap:.25rem;
+}
+
+.profile-interface .status-bar .status-bar-right{
+    display:flex;
+    align-items:center;
+    gap:.5rem;
+}
+
+.profile-interface .status-bar .status-icon-svg{
+    width:1rem;
+    height:1rem;
+    fill:#fff;
+}
+
+.profile-content{
+    width:100%;
+    height:calc(100% - 1.5rem - 3.125rem);
+    background:hsla(0,0%,100%,.9);
+    background-blend-mode:overlay;
+    position:relative;
+    top:1.5rem;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:2rem 1rem;
+}
+
+/* 底部导航栏 */
+.bottom-nav{
+    position:absolute;
+    bottom:0;
+    left:0;
+    width:100%;
+    height:3.125rem;
+    background:#fff;
+    border-top:1px solid rgba(255,105,180,.1);
+    display:flex;
+    justify-content:space-around;
+    align-items:center;
+    z-index:10;
+    border-bottom-left-radius:1.5rem;
+    border-bottom-right-radius:1.5rem;
+}
+
+.bottom-nav .bottom-nav-item{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:.25rem;
+    color:#666;
+    font-size:.75rem;
+    cursor:pointer;
+    transition:all .3s ease;
+    padding:.3125rem 0;
+    flex:1;
+}
+
+.bottom-nav .bottom-nav-item.active{
+    color:hotpink;
+}
+
+.bottom-nav .bottom-nav-item:hover{
+    color:hotpink;
+    transform:translateY(-0.125rem);
+}
+
+.bottom-nav .bottom-nav-item .nav-icon{
+    width:1.6875rem;
+    height:1.6875rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:color .3s ease;
+}
+
+.bottom-nav .bottom-nav-item .bottom-nav-text{
+    font-weight:500;
+    transition:color .3s ease;
+}
+
+/* 设置模态框 */
+.settings-modal{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,.5);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:1000;
+    border-radius:1.5rem;
+    opacity:0;
+    visibility:hidden;
+    transition:all .3s ease;
+}
+
+.settings-modal.show{
+    opacity:1;
+    visibility:visible;
+}
+
+.settings-modal .modal-container{
+    width:90%;
+    max-width:25rem;
+    max-height:80%;
+    background:#fff;
+    border-radius:1rem;
+    padding:1.5rem;
+    position:relative;
+    overflow-y:auto;
+    transform:scale(0.9) translateY(1.25rem);
+    transition:transform .3s ease;
+}
+
+.settings-modal .modal-container::-webkit-scrollbar{
+    width:6px;
+}
+
+.settings-modal .modal-container::-webkit-scrollbar-track{
+    background:rgba(0,0,0,0);
+}
+
+.settings-modal .modal-container::-webkit-scrollbar-thumb{
+    background:rgba(0,0,0,.1);
+    border-radius:3px;
+}
+
+.settings-modal.show .modal-container{
+    transform:scale(1) translateY(0);
+}
+
+.settings-modal .modal-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:1.5rem;
+    padding-bottom:1rem;
+    border-bottom:1px solid #e0e0e0;
+}
+
+.settings-modal .modal-title{
+    font-size:1.25rem;
+    font-weight:600;
+    color:#333;
+}
+
+.settings-modal .close-btn{
+    background:none;
+    border:none;
+    font-size:1.5rem;
+    color:#666;
+    cursor:pointer;
+    padding:0;
+    width:2rem;
+    height:2rem;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:50%;
+    transition:all .2s;
+}
+
+.settings-modal .close-btn:hover{
+    background:#f0f0f0;
+    color:#333;
+}
+
+.settings-section{
+    margin-bottom:2rem;
+}
+
+.settings-section:last-child{
+    margin-bottom:0;
+}
+
+.section-title{
+    font-size:1rem;
+    font-weight:600;
+    color:#333;
+    margin-bottom:1rem;
+    padding-bottom:.5rem;
+    border-bottom:1px solid #f0f0f0;
+}
+
+.setting-item{
+    margin-bottom:1.5rem;
+}
+
+.setting-item:last-child{
+    margin-bottom:0;
+}
+
+.setting-label{
+    display:block;
+    font-size:.875rem;
+    font-weight:500;
+    color:#333;
+    margin-bottom:.5rem;
+}
+
+.wallpaper-grid{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:.75rem;
+    margin-top:.5rem;
+}
+
+.wallpaper-option{
+    aspect-ratio:16/9;
+    border-radius:.5rem;
+    overflow:hidden;
+    cursor:pointer;
+    border:2px solid transparent;
+    transition:all .2s ease;
+    position:relative;
+}
+
+.wallpaper-option:hover{
+    transform:scale(1.05);
+    border-color:#6c8cd5;
+}
+
+.wallpaper-option.selected{
+    border-color:#6c8cd5;
+    box-shadow:0 0 0 2px rgba(108,140,213,.3);
+}
+
+.wallpaper-option img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.wallpaper-option::after{
+    content:"";
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    bottom:0;
+    background:rgba(108,140,213,.2);
+    opacity:0;
+    transition:opacity .2s ease;
+}
+
+.wallpaper-option.selected::after{
+    opacity:1;
+}
+
+.wallpaper-option .check-icon{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%, -50%);
+    color:#fff;
+    font-size:1.5rem;
+    opacity:0;
+    transition:opacity .2s ease;
+    z-index:1;
+}
+
+.wallpaper-option.selected .check-icon{
+    opacity:1;
+}
+
+</style>
+</head>
+<body>
+<div class="phone-container">
+    <div class="phone-charm"></div>
+    <div class="phone-notch">
+        <div class="notch-sensor"></div>
+        <div class="notch-camera"></div>
+        <div class="notch-speaker"></div>
+        <div class="notch-sensor"></div>
+    </div>
+    <div class="interface-container">
+        <!-- 桌面界面 -->
+        <div class="desktop-interface" id="desktopInterface">
+            <div class="desktop-status-bar">
+                <div class="status-bar-left">
+                    <span id="desktopStatusTime">12:00</span>
+                </div>
+                <div class="status-bar-right">
+                    <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M20,20h2v-2h-2V20z M18,20h-2v-4h2V20z M14,20h-2v-6h2V20z M10,20H8v-8h2V20z M6,20H4v-10h2V20z"></path></svg>
+                    <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M12,3C7.41,3,3.86,4.53,0.96,7.03L2.37,8.44C4.89,6.31,8.06,5,12,5s7.11,1.31,9.63,3.44l1.41-1.41C20.14,4.53,16.59,3,12,3z M12,7C9.3,7,6.81,7.89,4.8,9.4l1.4,1.41C7.03,8.95,9.37,8,12,8s4.97.95,6.2,2.4l1.4-1.41C17.19,7.89,14.7,7,12,7z"></path></svg>
+                    <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M15.67,4H14V2h-4v2H8.33C7.6,4,7,4.6,7,5.33V9h4.93L13,7v2h4V5.33C17,4.6,16.4,4,15.67,4z"></path></svg>
+                </div>
+            </div>
+            <div class="desktop-content">
+                <div class="desktop-icons">
+                    <div class="desktop-icon" onclick="showWechatInterface()">
+                        <div class="desktop-icon-image wechat">💬</div>
+                        <div class="desktop-icon-label">微信</div>
+                    </div>
+                    <div class="desktop-icon" onclick="showSettingsModal()">
+                        <div class="desktop-icon-image settings">⚙️</div>
+                        <div class="desktop-icon-label">设置</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 微信界面容器 -->
+        <div class="wechat-container" id="wechatContainer">
+            <!-- 聊天列表界面 -->
+            <div class="chat-list-interface" id="chatListInterface">
+                <div class="status-bar">
+                    <div class="status-bar-left">
+                        <span id="chatListStatusTime">12:00</span>
+                    </div>
+                    <div class="status-bar-right">
+                        <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M20,20h2v-2h-2V20z M18,20h-2v-4h2V20z M14,20h-2v-6h2V20z M10,20H8v-8h2V20z M6,20H4v-10h2V20z"></path></svg>
+                        <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M12,3C7.41,3,3.86,4.53,0.96,7.03L2.37,8.44C4.89,6.31,8.06,5,12,5s7.11,1.31,9.63,3.44l1.41-1.41C20.14,4.53,16.59,3,12,3z M12,7C9.3,7,6.81,7.89,4.8,9.4l1.4,1.41C7.03,8.95,9.37,8,12,8s4.97.95,6.2,2.4l1.4-1.41C17.19,7.89,14.7,7,12,7z"></path></svg>
+                        <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M15.67,4H14V2h-4v2H8.33C7.6,4,7,4.6,7,5.33V9h4.93L13,7v2h4V5.33C17,4.6,16.4,4,15.67,4z"></path></svg>
+                    </div>
+                </div>
+                <div class="chat-list-header">
+                    <button class="desktop-btn" onclick="showDesktop()">桌面</button>
+                    <div class="chat-list-title">信息</div>
+                    <div style="width:60px;"></div> <!-- 占位符保持标题居中 -->
+                </div>
+                <div class="chat-list-content" id="chatListContent">
+                    <!-- 聊天列表内容 -->
+                    <div style="padding:2rem 1rem; text-align:center; color:#666;">
+                        <div style="font-size:3rem; margin-bottom:1rem; opacity:0.6;">💬</div>
+                        <div style="font-size:1.125rem; font-weight:600; margin-bottom:0.5rem;">暂无聊天</div>
+                        <div style="font-size:0.875rem; line-height:1.4;">点击右下角按钮开始新的聊天</div>
+                    </div>
+                </div>
+                <div class="bottom-nav">
+                    <div class="bottom-nav-item active" onclick="showChatList()">
+                        <div class="nav-icon">💬</div>
+                        <div class="bottom-nav-text">信息</div>
+                    </div>
+                    <div class="bottom-nav-item" onclick="showProfile()">
+                        <div class="nav-icon">👤</div>
+                        <div class="bottom-nav-text">我的</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 个人资料界面 -->
+            <div class="profile-interface" id="profileInterface">
+                <div class="status-bar">
+                    <div class="status-bar-left">
+                        <span id="profileStatusTime">12:00</span>
+                    </div>
+                    <div class="status-bar-right">
+                        <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M20,20h2v-2h-2V20z M18,20h-2v-4h2V20z M14,20h-2v-6h2V20z M10,20H8v-8h2V20z M6,20H4v-10h2V20z"></path></svg>
+                        <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M12,3C7.41,3,3.86,4.53,0.96,7.03L2.37,8.44C4.89,6.31,8.06,5,12,5s7.11,1.31,9.63,3.44l1.41-1.41C20.14,4.53,16.59,3,12,3z M12,7C9.3,7,6.81,7.89,4.8,9.4l1.4,1.41C7.03,8.95,9.37,8,12,8s4.97.95,6.2,2.4l1.4-1.41C17.19,7.89,14.7,7,12,7z"></path></svg>
+                        <svg class="status-icon-svg" viewBox="0 0 24 24"><path d="M15.67,4H14V2h-4v2H8.33C7.6,4,7,4.6,7,5.33V9h4.93L13,7v2h4V5.33C17,4.6,16.4,4,15.67,4z"></path></svg>
+                    </div>
+                </div>
+                <div class="profile-content">
+                    <div style="text-align:center; margin-bottom:2rem;">
+                        <div style="width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg, #6c8cd5, #4a6fbf); margin:0 auto 1rem; display:flex; align-items:center; justify-content:center; font-size:2rem; color:white;">👤</div>
+                        <div style="font-size:1.25rem; font-weight:600; color:#333; margin-bottom:0.5rem;">多云熊</div>
+                        <div style="font-size:0.875rem; color:#666;">微信号: duoyunxiong</div>
+                    </div>
+                    
+                    <div style="width:100%; background:rgba(255,255,255,0.8); border-radius:1rem; padding:1.5rem;">
+                        <div style="font-size:1rem; font-weight:600; color:#333; margin-bottom:1rem;">个人信息</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0; border-bottom:1px solid #f0f0f0;">
+                            <span style="color:#666;">昵称</span>
+                            <span style="color:#333;">多云熊</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0; border-bottom:1px solid #f0f0f0;">
+                            <span style="color:#666;">地区</span>
+                            <span style="color:#333;">云端</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0;">
+                            <span style="color:#666;">个性签名</span>
+                            <span style="color:#333;">AI助手，随时为您服务</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom-nav">
+                    <div class="bottom-nav-item" onclick="showChatList()">
+                        <div class="nav-icon">💬</div>
+                        <div class="bottom-nav-text">信息</div>
+                    </div>
+                    <div class="bottom-nav-item active" onclick="showProfile()">
+                        <div class="nav-icon">👤</div>
+                        <div class="bottom-nav-text">我的</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置模态框 -->
+        <div class="settings-modal" id="settingsModal">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <div class="modal-title">设置</div>
+                    <button class="close-btn" onclick="hideSettingsModal()">&times;</button>
+                </div>
+                
+                <div class="settings-section">
+                    <div class="section-title">个性化</div>
+                    <div class="setting-item">
+                        <label class="setting-label">桌面壁纸</label>
+                        <div class="wallpaper-grid">
+                            <div class="wallpaper-option selected" data-wallpaper="https://files.catbox.moe/o84j4n.jpg">
+                                <img src="https://files.catbox.moe/o84j4n.jpg" alt="默认壁纸">
+                                <div class="check-icon">✓</div>
+                            </div>
+                            <div class="wallpaper-option" data-wallpaper="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400">
+                                <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400" alt="山景壁纸">
+                                <div class="check-icon">✓</div>
+                            </div>
+                            <div class="wallpaper-option" data-wallpaper="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400">
+                                <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=400" alt="森林壁纸">
+                                <div class="check-icon">✓</div>
+                            </div>
+                            <div class="wallpaper-option" data-wallpaper="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400">
+                                <img src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400" alt="海滩壁纸">
+                                <div class="check-icon">✓</div>
+                            </div>
+                            <div class="wallpaper-option" data-wallpaper="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400">
+                                <img src="https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=400" alt="星空壁纸">
+                                <div class="check-icon">✓</div>
+                            </div>
+                            <div class="wallpaper-option" data-wallpaper="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400">
+                                <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=400" alt="雾山壁纸">
+                                <div class="check-icon">✓</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <div class="section-title">其他功能</div>
+                    <div class="setting-item">
+                        <div style="text-align:center; color:#666; padding:2rem 0;">
+                            <div style="font-size:2rem; margin-bottom:1rem; opacity:0.6;">🔧</div>
+                            <div style="font-size:1rem; font-weight:500; margin-bottom:0.5rem;">更多功能开发中</div>
+                            <div style="font-size:0.875rem; line-height:1.4;">敬请期待更多个性化设置选项</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+// 当前显示的界面
+let currentInterface = 'desktop';
+let currentWechatTab = 'chatList';
+
+// 更新时间显示
+function updateTime() {
+    const now = new Date();
+    const timeString = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    
+    // 更新所有状态栏的时间
+    const timeElements = document.querySelectorAll('#desktopStatusTime, #chatListStatusTime, #profileStatusTime');
+    timeElements.forEach(element => {
+        if (element) element.textContent = timeString;
+    });
+}
+
+// 显示桌面
+function showDesktop() {
+    currentInterface = 'desktop';
+    
+    // 隐藏微信容器
+    document.getElementById('wechatContainer').classList.remove('active');
+    
+    // 显示桌面
+    document.getElementById('desktopInterface').classList.remove('hidden');
+    
+    updateTime();
+}
+
+// 显示微信界面
+function showWechatInterface() {
+    currentInterface = 'wechat';
+    
+    // 隐藏桌面
+    document.getElementById('desktopInterface').classList.add('hidden');
+    
+    // 显示微信容器
+    document.getElementById('wechatContainer').classList.add('active');
+    
+    // 默认显示聊天列表
+    showChatList();
+    
+    updateTime();
+}
+
+// 显示聊天列表
+function showChatList() {
+    currentWechatTab = 'chatList';
+    
+    // 隐藏个人资料界面
+    document.getElementById('profileInterface').classList.remove('active');
+    
+    // 显示聊天列表界面
+    document.getElementById('chatListInterface').classList.remove('hidden');
+    
+    // 更新底部导航栏状态
+    updateBottomNav();
+    
+    updateTime();
+}
+
+// 显示个人资料
+function showProfile() {
+    currentWechatTab = 'profile';
+    
+    // 隐藏聊天列表界面
+    document.getElementById('chatListInterface').classList.add('hidden');
+    
+    // 显示个人资料界面
+    document.getElementById('profileInterface').classList.add('active');
+    
+    // 更新底部导航栏状态
+    updateBottomNav();
+    
+    updateTime();
+}
+
+// 更新底部导航栏状态
+function updateBottomNav() {
+    const navItems = document.querySelectorAll('.bottom-nav-item');
+    navItems.forEach(item => item.classList.remove('active'));
+    
+    if (currentWechatTab === 'chatList') {
+        document.querySelectorAll('.bottom-nav-item')[0].classList.add('active');
+    } else if (currentWechatTab === 'profile') {
+        document.querySelectorAll('.bottom-nav-item')[1].classList.add('active');
+        document.querySelectorAll('.bottom-nav-item')[3].classList.add('active');
+    }
+}
+
+// 显示设置模态框
+function showSettingsModal() {
+    document.getElementById('settingsModal').classList.add('show');
+}
+
+// 隐藏设置模态框
+function hideSettingsModal() {
+    document.getElementById('settingsModal').classList.remove('show');
+}
+
+// 壁纸选择功能
+function initWallpaperSelection() {
+    const wallpaperOptions = document.querySelectorAll('.wallpaper-option');
+    
+    wallpaperOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            // 移除所有选中状态
+            wallpaperOptions.forEach(opt => opt.classList.remove('selected'));
+            
+            // 添加当前选中状态
+            this.classList.add('selected');
+            
+            // 获取壁纸URL
+            const wallpaperUrl = this.dataset.wallpaper;
+            
+            // 应用壁纸到所有界面
+            const interfaces = [
+                document.getElementById('desktopInterface'),
+                document.getElementById('chatListInterface'),
+                document.getElementById('profileInterface')
+            ];
+            
+            interfaces.forEach(interface => {
+                if (interface) {
+                    interface.style.backgroundImage = `url("${wallpaperUrl}")`;
+                }
+            });
+            
+            // 保存壁纸设置到本地存储
+            localStorage.setItem('selectedWallpaper', wallpaperUrl);
+        });
+    });
+}
+
+// 加载保存的壁纸设置
+function loadWallpaperSetting() {
+    const savedWallpaper = localStorage.getItem('selectedWallpaper');
+    if (savedWallpaper) {
+        // 应用保存的壁纸
+        const interfaces = [
+            document.getElementById('desktopInterface'),
+            document.getElementById('chatListInterface'),
+            document.getElementById('profileInterface')
+        ];
+        
+        interfaces.forEach(interface => {
+            if (interface) {
+                interface.style.backgroundImage = `url("${savedWallpaper}")`;
+            }
+        });
+        
+        // 更新壁纸选择器状态
+        const wallpaperOptions = document.querySelectorAll('.wallpaper-option');
+        wallpaperOptions.forEach(option => {
+            option.classList.remove('selected');
+            if (option.dataset.wallpaper === savedWallpaper) {
+                option.classList.add('selected');
+            }
+        });
+    }
+}
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 默认显示桌面
+    showDesktop();
+    
+    // 初始化壁纸选择功能
+    initWallpaperSelection();
+    
+    // 加载保存的壁纸设置
+    loadWallpaperSetting();
+    
+    // 开始更新时间
+    updateTime();
+    setInterval(updateTime, 1000);
+    
+    // 点击模态框外部关闭
+    document.getElementById('settingsModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideSettingsModal();
+        }
+    });
+});
+</script>
+
+</body></html>
