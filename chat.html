@@ -1,0 +1,4647 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>消息</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css" />
+    <style>
+      :root {
+        --bg-card: rgba(13, 14, 23, 0.9);
+        --bg-surface: rgba(24, 25, 36, 0.5);
+        --border: rgba(35, 41, 48, 0.8);
+        --text-primary: #f0f6fc;
+        --text-secondary: #8b949e;
+        --accent-gold: #ffa657;
+        --accent-purple: #bc8cff;
+        --accent-blue: #79c0ff;
+        --accent-red: #ff7b72;
+        --user-bubble: #4b4569;
+        --friend-bubble: #21262d;
+        --username-color: #80a5ce;
+        --send-button-gradient: linear-gradient(135deg, #a378e1, #bc8cff, #79c0ff);
+        --red-packet-color: #fa9d3b;
+        --location-color: #4a90e2;
+      }
+      body {
+        margin: 0;
+        padding: 0.5em;
+        background: transparent;
+        font-family: 'Segoe UI', sans-serif;
+      }
+
+      .message-card {
+        max-width: 650px;
+        margin: 1em auto;
+        background: var(--bg-card);
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(91, 88, 255, 0.15);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        color: var(--text-primary);
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-height: 300px;
+      }
+      .message-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, var(--accent-gold), var(--accent-purple), var(--accent-blue));
+        opacity: 0.8;
+        z-index: 10;
+      }
+
+      .chat-session {
+        padding: 10px 16px;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .chat-session.group-header {
+        position: relative;
+      }
+      .session-title {
+        font-size: 0.9em;
+        font-weight: 600;
+        color: var(--accent-gold);
+        margin: 0;
+      }
+      .session-members {
+        display: none;
+        padding: 8px 16px;
+        background: var(--bg-surface);
+        border-bottom: 1px solid var(--border);
+        font-size: 0.75em;
+        color: var(--text-secondary);
+      }
+      .session-members.visible {
+        display: block;
+      }
+
+      .toggle-members-btn {
+        background: none;
+        border: none;
+        color: var(--icon-color);
+        font-size: 0.825em;
+        cursor: pointer;
+        padding: 5px;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      .toggle-members-btn:hover {
+        opacity: 1;
+      }
+
+      .chat-content {
+        padding: 12px 16px;
+        max-height: 438px;
+        overflow-y: auto;
+        flex-grow: 1;
+      }
+
+      .message-wrapper {
+        margin: 8px 0;
+        display: flex;
+        transition: margin 0.3s ease;
+      }
+      .private-chat .message-wrapper {
+        margin: 16px 0;
+      }
+      .message-wrapper.user {
+        justify-content: flex-end;
+      }
+      .message-wrapper.friend {
+        justify-content: flex-start;
+      }
+      .message-wrapper.center {
+        justify-content: center;
+      }
+
+      .message-bubble-container {
+        max-width: 75%;
+        display: flex;
+        flex-direction: column;
+      }
+      .message-wrapper.user .message-bubble-container {
+        align-items: flex-end;
+      }
+      .message-wrapper.friend .message-bubble-container {
+        align-items: flex-start;
+      }
+
+      .message-username {
+        font-size: 0.7em;
+        color: var(--username-color);
+        margin-bottom: 2px;
+        padding: 0 12px;
+      }
+      .message-bubble {
+        padding: 8px 12px;
+        border-radius: 14px;
+        word-break: break-word;
+        font-size: 0.85em;
+        line-height: 1.4;
+        color: var(--text-primary);
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+      }
+      .message-wrapper.user .message-bubble {
+        background: var(--user-bubble);
+        border-bottom-right-radius: 4px;
+      }
+      .message-wrapper.friend .message-bubble {
+        background: var(--friend-bubble);
+        border: 1px solid var(--border);
+        border-bottom-left-radius: 4px;
+      }
+      .message-wrapper.user .red-packet-bubble,
+      .message-wrapper.friend .red-packet-bubble {
+        background: url('https://i.postimg.cc/pL8j84yt/QQ20251004-183403.png') no-repeat center center !important;
+        background-size: 100% 100% !important;
+      }
+
+      .system-message {
+        text-align: center;
+        margin: 12px 0;
+        font-size: 0.75em;
+        color: var(--text-secondary);
+      }
+      .message-wrapper.system {
+        margin: 8px 0;
+        text-align: center;
+        display: block !important;
+        justify-content: unset !important;
+      }
+      .message-wrapper.system .system-message {
+        margin: 0;
+      }
+      .multi-select-mode .message-wrapper.system {
+        padding-left: 0 !important;
+        text-align: center;
+        display: block !important;
+        position: relative;
+      }
+      .multi-select-mode .message-wrapper.system .checkbox-circle {
+        left: 50%;
+        top: -15px;
+        transform: translateX(-50%);
+      }
+
+      .message-extra-info {
+        font-size: 0.75em;
+        color: var(--text-secondary);
+        padding: 4px 12px 0 12px;
+      }
+
+      .image-preview-bubble {
+        cursor: pointer;
+        width: 120px;
+        height: 120px;
+        overflow: hidden;
+        padding: 10px;
+        border-radius: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+      .red-packet-bubble {
+        cursor: pointer;
+        padding: 0;
+        border-radius: 6px;
+        width: 184px;
+        height: 70px;
+        overflow: visible;
+        position: relative;
+        background: url('https://i.postimg.cc/pL8j84yt/QQ20251004-183403.png') no-repeat center center !important;
+        background-size: 100% 100% !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        padding-top: 13px;
+      }
+      .red-packet-bubble .red-packet-text {
+        padding-left: 57px;
+        padding-right: 9px;
+        padding-top: 0px;
+        color: #fff;
+        font-size: 0.85em;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        text-align: left;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      }
+      .red-packet-bubble .red-packet-text .amount {
+        font-size: 1.2em;
+        font-weight: 600;
+      }
+      .red-packet-bubble .red-packet-text .memo {
+        font-size: 0.85em;
+        opacity: 0.95;
+      }
+      .video-bubble {
+        cursor: pointer;
+        padding: 50px;
+        border-radius: 18px;
+        width: 200px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .call-waiting-bubble {
+        text-align: center;
+        padding: 0.5em 1em;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+        font-weight: 500;
+        font-size: 0.7em;
+        cursor: default;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.6;
+        }
+      }
+      .call-request-bubble {
+        cursor: pointer;
+        padding: 0.5em 1em;
+        border-radius: 16px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+        font-weight: 500;
+        font-size: 0.7em;
+        animation: pulse 2s ease-in-out infinite;
+      }
+      .call-accepted-bubble {
+        cursor: pointer;
+        padding: 0.5em 1em;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--accent-gold, #d4af37) 0%, var(--accent-purple, #a855f7) 100%);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+        font-weight: 500;
+        font-size: 0.8em;
+        animation: glow 2s ease-in-out infinite;
+      }
+      .call-rejected-bubble {
+        cursor: default;
+        padding: 0.5em 1em;
+        border-radius: 16px;
+        background: #666;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+        font-weight: 500;
+        font-size: 0.8em;
+      }
+      .call-ended-bubble {
+        cursor: pointer;
+        padding: 0.5em 1em;
+        border-radius: 16px;
+        background: #888;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5em;
+        font-weight: 500;
+        font-size: 0.8em;
+      }
+      @keyframes glow {
+        0%,
+        100% {
+          opacity: 1;
+          box-shadow: 0 0 5px rgba(212, 175, 55, 0.4);
+        }
+        50% {
+          opacity: 0.8;
+          box-shadow: 0 0 10px rgba(212, 175, 55, 0.7);
+        }
+      }
+      .location-bubble {
+        cursor: pointer;
+        padding: 0;
+        border-radius: 6px;
+        width: 175px;
+        overflow: hidden;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+      }
+      .location-bubble .location-text {
+        padding: 7px 13px;
+        background: #fff;
+        color: #333;
+        font-size: 1em;
+        font-weight: 600;
+        text-align: left;
+        line-height: 1.4;
+        min-height: 26px;
+        display: flex;
+        align-items: center;
+      }
+      .location-bubble .location-map {
+        width: 100%;
+        height: 70px;
+        background: url('https://i.postimg.cc/7YF3jT68/1.png') no-repeat center center;
+        background-size: cover;
+      }
+      .red-packet-bubble.claimed {
+        background: #999;
+        opacity: 0.7;
+      }
+
+      /* 表情包占位符样式 */
+      .sticker-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5em;
+        background: transparent;
+        border-radius: 0;
+        max-width: 120px;
+        max-height: 120px;
+      }
+
+      /* 表情包图片样式 */
+      .sticker-image {
+        max-width: 120px;
+        max-height: 120px;
+        display: block;
+        object-fit: contain;
+        cursor: default;
+        /* 禁用iPhone长按菜单 */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        pointer-events: auto;
+        /* 禁用拖动 */
+        -webkit-user-drag: none;
+        -khtml-user-drag: none;
+        -moz-user-drag: none;
+        -o-user-drag: none;
+        /* 确保GIF持续播放 */
+        will-change: auto;
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
+        backface-visibility: hidden;
+        -webkit-backface-visibility: hidden;
+      }
+      .video-bubble {
+        background: var(--friend-bubble);
+        border: 1px solid var(--border);
+      }
+      .video-icon {
+        color: #2196f3;
+      }
+
+      /* 长按操作图标 */
+      .bubble-actions {
+        position: absolute;
+        top: -30px;
+        right: 0;
+        display: none;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 2px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        z-index: 50;
+      }
+      .bubble-actions.left-side {
+        right: auto;
+        left: 0;
+      }
+      .bubble-actions.system-center {
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      .bubble-actions .action-btn {
+        width: 22px;
+        height: 22px;
+        border: none;
+        background: none;
+        margin: 0 1px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7em;
+      }
+      .bubble-actions .edit-btn {
+        color: var(--text-secondary);
+      }
+      .bubble-actions .delete-btn {
+        color: var(--text-secondary);
+      }
+      .bubble-actions .quote-btn {
+        color: var(--text-secondary);
+      }
+
+      /* 多选模式样式 */
+      .multi-select-mode .message-wrapper {
+        position: relative;
+        padding-left: 40px;
+      }
+      .multi-select-mode .checkbox-circle {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--border);
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .multi-select-mode .checkbox-circle::before {
+        content: '';
+        position: absolute;
+        width: 32px;
+        height: 32px;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+      } /* 扩大点击区域 */
+      .multi-select-mode .checkbox-circle.selected {
+        background: var(--accent-red);
+        border-color: var(--accent-red);
+        color: white;
+      }
+      .multi-select-mode .chat-input-area {
+        display: none !important;
+        visibility: hidden;
+        pointer-events: none;
+        height: 0;
+        margin: 0;
+        padding: 0;
+      }
+      .multi-select-mode .action-icon-bar {
+        display: none !important;
+        visibility: hidden;
+        pointer-events: none;
+        height: 0;
+        margin: 0;
+        padding: 0;
+      }
+      .multi-select-mode .chat-content {
+        padding-bottom: 80px;
+      } /* 为多选工具栏留出空间 */
+
+      /* 多选底部操作栏 */
+      .multiselect-toolbar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--bg-surface);
+        border-top: 1px solid var(--border);
+        padding: 12px;
+        display: none;
+        z-index: 1000;
+      }
+      .multiselect-toolbar .toolbar-buttons {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+      }
+      .multiselect-toolbar button {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+      }
+      .multiselect-toolbar .delete-btn {
+        background: #e74c3c;
+        color: white;
+      }
+      .multiselect-toolbar .cancel-btn {
+        background: #666;
+        color: white;
+      }
+
+      /* 卡片内联多选工具栏，避免被输入区遮挡 */
+      .multiselect-inline-toolbar {
+        position: absolute;
+        bottom: 8px;
+        left: 12px;
+        right: 12px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        padding: 8px;
+        border-radius: 8px;
+        display: none;
+        z-index: 1200;
+      }
+      .multiselect-inline-toolbar .toolbar-buttons {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+      }
+      .multiselect-inline-toolbar button {
+        padding: 6px 12px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 0.9em;
+      }
+      .multiselect-inline-toolbar .delete-btn {
+        background: #e74c3c;
+        color: white;
+      }
+      .multiselect-inline-toolbar .cancel-btn {
+        background: #666;
+        color: white;
+      }
+
+      /* 美化滚动条 - PC端 Webkit 浏览器 */
+      .chat-content::-webkit-scrollbar {
+        width: 6px;
+      }
+      .chat-content::-webkit-scrollbar-track {
+        background: var(--bg-card);
+        border-radius: 4px;
+      }
+      .chat-content::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+        border-radius: 4px;
+        transition: background 0.3s ease;
+      }
+      .chat-content::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, var(--accent-red), var(--accent-purple));
+      }
+
+      /* 弹窗滚动条 */
+      .popup-content::-webkit-scrollbar {
+        width: 6px;
+      }
+      .popup-content::-webkit-scrollbar-track {
+        background: var(--bg-surface);
+        border-radius: 3px;
+      }
+      .popup-content::-webkit-scrollbar-thumb {
+        background: var(--send-button-gradient);
+        border-radius: 3px;
+      }
+      .popup-content::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, var(--accent-gold), var(--accent-red));
+      }
+
+      /* 表情包网格滚动条 */
+      .sticker-grid::-webkit-scrollbar {
+        width: 6px;
+      }
+      .sticker-grid::-webkit-scrollbar-track {
+        background: var(--bg-surface);
+        border-radius: 3px;
+      }
+      .sticker-grid::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+        border-radius: 3px;
+      }
+      .sticker-grid::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, var(--accent-red), var(--accent-purple));
+      }
+
+      /* 表情包网格布局 */
+      .sticker-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        max-height: 150px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        padding: 8px;
+        box-sizing: border-box;
+        width: 100%;
+      }
+
+      /* 当界面高度足够时，显示更多表情包（约3排） */
+      @media (min-height: 600px) {
+        .sticker-grid {
+          max-height: 350px;
+        }
+      }
+
+      .sticker-option {
+        width: 100%;
+        aspect-ratio: 1;
+        cursor: pointer;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.2s;
+        position: relative;
+      }
+
+      .sticker-option img {
+        /* 禁用iPhone长按菜单 */
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        pointer-events: none;
+      }
+
+      /* 移动端表情包显示3列 */
+      @media (max-width: 768px) {
+        .sticker-grid {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 10px;
+        }
+      }
+
+      .location-icon {
+        font-size: 1.5em;
+        color: var(--location-color);
+      }
+      .card-content {
+        flex-grow: 1;
+      }
+      .card-title {
+        font-weight: 600;
+        font-size: 0.9em;
+      }
+      .card-subtitle {
+        font-size: 0.75em;
+        opacity: 0.8;
+        margin-top: 4px;
+      }
+
+      .action-icon-bar {
+        display: flex;
+        gap: 16px;
+        padding: 8px 12px;
+        border-top: 1px solid var(--border);
+        background: var(--bg-surface);
+      }
+      .action-icon {
+        color: var(--text-secondary);
+        font-size: 1.1em;
+        cursor: pointer;
+        transition: color 0.2s;
+      }
+      .action-icon:hover {
+        color: var(--text-primary);
+      }
+      .action-icon.disabled {
+        color: #555;
+        cursor: not-allowed;
+      }
+      .action-icon.active {
+        color: var(--accent-red);
+      }
+      .action-icon[data-action='system'].active {
+        color: var(--accent-red);
+      }
+
+      .chat-input-area {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        border-top: 1px solid var(--border);
+        background: var(--bg-surface);
+        flex-shrink: 0;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .chat-input {
+        border: 1px solid var(--border);
+        background: var(--bg-card);
+        color: var(--text-primary);
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 0.85em;
+        width: 100%;
+        margin-right: 8px;
+        outline: none;
+      }
+      .send-button {
+        background: var(--send-button-gradient);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 0.85em;
+        margin-left: auto;
+        flex-shrink: 0;
+      }
+
+      @keyframes button-flash {
+        0%,
+        100% {
+          filter: brightness(1);
+        }
+        50% {
+          filter: brightness(1.5);
+        }
+      }
+      .send-button.sending {
+        animation: button-flash 0.5s ease-in-out;
+        cursor: wait;
+      }
+
+      .popup-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+        overflow: auto;
+        box-sizing: border-box;
+        padding: 1em;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        pointer-events: none;
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      .popup-overlay.show {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .popup-content {
+        background: var(--bg-surface);
+        padding: 1.5em;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        max-width: 90%;
+        max-height: 90%;
+        overflow-y: auto;
+        cursor: default;
+        transform: scale(0.9);
+        transition: transform 0.2s ease;
+      }
+      .popup-overlay.show .popup-content {
+        transform: scale(1);
+      }
+      .popup-content.image-popup {
+        border: none;
+        border-radius: 0;
+        padding: 1em;
+        background: var(--user-bubble);
+        width: 240px;
+        height: 240px;
+        max-width: 240px;
+        max-height: 240px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      .popup-content.image-popup p {
+        margin: auto;
+        word-break: break-word;
+      }
+      .popup-content.image-popup img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+      /* 图片弹窗滚动条 */
+      .popup-content.image-popup::-webkit-scrollbar {
+        width: 6px;
+      }
+      .popup-content.image-popup::-webkit-scrollbar-track {
+        background: var(--bg-card);
+        border-radius: 3px;
+      }
+      .popup-content.image-popup::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+        border-radius: 3px;
+      }
+      .popup-content.image-popup::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, var(--accent-red), var(--accent-purple));
+      }
+      .popup-content.red-packet-popup {
+        max-width: 280px;
+        width: 100%;
+      }
+      .popup-content.red-packet-claim-popup {
+        max-width: 300px;
+        width: 100%;
+        text-align: center;
+      }
+      .popup-content.sticker-popup {
+        max-width: 360px;
+        width: 90%;
+        max-height: 250px;
+        box-sizing: border-box;
+        overflow: visible;
+      }
+      .popup-content.call-popup {
+        max-width: 640px;
+        width: 95%;
+        max-height: 85vh;
+        padding: 1.2em;
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+      }
+      .popup-content.call-popup #call-history-container {
+        padding: 0.3em;
+        font-size: 0.95em;
+      }
+      .popup-content.call-popup .call-message-item {
+        padding: 8px 0 !important;
+      }
+      .popup-content.call-popup .chat-input {
+        height: 42px;
+        padding: 8px 12px;
+      }
+      .popup-content.call-popup .popup-buttons {
+        margin-top: 0.3em !important;
+      }
+      #call-history-container::-webkit-scrollbar {
+        width: 6px;
+      }
+      #call-history-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      #call-history-container::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        border-radius: 3px;
+      }
+      #call-history-container::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #764ba2 0%, #667eea 100%);
+      }
+      .sticker-suggestions {
+        position: absolute;
+        bottom: 60px;
+        left: 10px;
+        right: 10px;
+        background: var(--bg-surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 0.5em;
+        height: 100px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 1000;
+        display: none;
+        white-space: nowrap;
+      }
+      .sticker-suggestions.show {
+        display: block;
+      }
+      .sticker-suggestions::-webkit-scrollbar {
+        height: 6px;
+      }
+      .sticker-suggestions::-webkit-scrollbar-track {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 3px;
+      }
+      .sticker-suggestions::-webkit-scrollbar-thumb {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 3px;
+      }
+      .sticker-suggestions::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+      }
+      .sticker-suggestion-item {
+        cursor: pointer;
+        padding: 0.3em;
+        border-radius: 8px;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.5em;
+        vertical-align: top;
+      }
+      .sticker-suggestion-item:hover {
+        background: var(--hover-bg, rgba(255, 255, 255, 0.1));
+        transform: scale(1.05);
+      }
+      .sticker-suggestion-item img {
+        width: 70px;
+        height: 70px;
+        object-fit: cover;
+        border-radius: 8px;
+      }
+      .popup-input {
+        margin-bottom: 1em;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .popup-buttons {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin-top: 1em;
+        align-items: center;
+      }
+      .popup-buttons button {
+        width: 100px;
+        flex: none;
+        margin-left: 0;
+      }
+      .red-packet-open-btn {
+        background: var(--red-packet-color);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 60px;
+        height: 60px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 1.2em;
+        margin: 15px auto 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .red-packet-open-btn:disabled,
+      .red-packet-open-btn.claimed {
+        background: #666;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="message-container"></div>
+    <!-- 卡片内联多选工具栏模板，按需克隆到对应卡片内 -->
+    <template id="inline-multiselect-template">
+      <div class="multiselect-inline-toolbar">
+        <div class="toolbar-buttons">
+          <button class="delete-btn" data-role="inline-delete">删除</button>
+          <button class="cancel-btn" data-role="inline-cancel">取消</button>
+        </div>
+      </div>
+    </template>
+    <div class="multiselect-toolbar" id="multiselect-toolbar">
+      <div class="toolbar-buttons">
+        <button class="delete-btn" id="multiselect-delete">删除选中</button>
+        <button class="cancel-btn" id="multiselect-cancel">取消</button>
+      </div>
+    </div>
+    <script>
+      (function () {
+        let rawData = `$1`;
+        const container = document.getElementById('message-container');
+        const activeModes = {};
+
+        // 长按和多选状态
+        let longPressTimer = null;
+        let currentBubbleActions = null;
+        let multiSelectMode = false;
+        let selectedMessages = new Set();
+        const multiselectToolbar = document.getElementById('multiselect-toolbar');
+
+        // 弹窗管理器
+        const PopupManager = {
+          currentPopupType: null, // 记录当前弹窗类型
+
+          // 重置弹窗样式为居中显示
+          resetOverlayStyle(overlay) {
+            overlay.style.cssText = '';
+            overlay.style.display = 'flex';
+            overlay.style.alignItems = 'center';
+            overlay.style.justifyContent = 'center';
+          },
+
+          show(overlay, content, popupType = null) {
+            if (content) overlay.querySelector('.popup-content').innerHTML = content;
+            overlay.style.display = 'flex';
+            // 强制重绘然后添加show类
+            overlay.offsetHeight;
+            overlay.classList.add('show');
+            this.currentPopupType = popupType;
+          },
+
+          hide(overlay) {
+            const wasSticker = this.currentPopupType === 'sticker';
+            this.currentPopupType = null;
+
+            overlay.classList.remove('show');
+            setTimeout(() => {
+              overlay.style.display = 'none';
+
+              // 只有关闭表情包弹窗时才需要唤醒GIF（优化性能）
+              if (wasSticker) {
+                requestAnimationFrame(() => {
+                  // 只处理可见的聊天内容区域的GIF
+                  const card = overlay.closest('.message-card');
+                  if (card) {
+                    const chatContent = card.querySelector('.chat-content');
+                    if (chatContent) {
+                      const gifs = chatContent.querySelectorAll('.sticker-image');
+                      gifs.forEach(img => {
+                        // 使用最轻量的方法：微小滚动触发重绘
+                        void img.offsetHeight;
+                      });
+                      // 触发容器微小滚动
+                      const scrollTop = chatContent.scrollTop;
+                      chatContent.scrollTop = scrollTop + 0.1;
+                      chatContent.scrollTop = scrollTop;
+                    }
+                  }
+                });
+              }
+            }, 200); // 等待过渡完成
+          },
+
+          hideAll() {
+            document.querySelectorAll('.popup-overlay').forEach(overlay => {
+              this.hide(overlay);
+            });
+          },
+        };
+
+        // 更新输入框提示文本
+        function updateInputPlaceholder(chatTitle, mode, extraText = '') {
+          const card = document.querySelector(`.message-card[data-chat-title="${escape(chatTitle)}"]`);
+          if (!card) return;
+
+          const input = card.querySelector('.chat-input');
+          if (!input) return;
+
+          const placeholders = {
+            text: '回复...',
+            media: '请在此输入图片描述...',
+            voice: '请在此输入语音内容...',
+            location: '请在此输入定位描述...',
+            quote: extraText || '引用消息',
+            system: '请输入系统消息...',
+          };
+
+          input.placeholder = placeholders[mode] || placeholders.text;
+        }
+
+        // 简化的图片图标切换功能
+        function toggleImageMode(imageIcon) {
+          const card = imageIcon.closest('.message-card');
+          const chatTitle = unescape(card.dataset.chatTitle);
+          const currentActive = activeModes[chatTitle];
+
+          // 切换图片文本模式
+          if (currentActive === 'media') {
+            // 如果已经是图片模式，则取消
+            activeModes[chatTitle] = null;
+            imageIcon.classList.remove('active');
+            updateInputPlaceholder(chatTitle, 'text');
+          } else {
+            // 设置为图片模式
+            activeModes[chatTitle] = 'media';
+            card.querySelectorAll('.action-icon.mode-toggle-icon').forEach(icon => {
+              icon.classList.remove('active');
+            });
+            imageIcon.classList.add('active');
+            updateInputPlaceholder(chatTitle, 'media');
+          }
+        }
+
+        // 显示气泡操作图标
+        function showBubbleActions(bubble) {
+          hideBubbleActions(); // 先隐藏之前的
+
+          const messageWrapper = bubble.closest('.message-wrapper');
+          if (!messageWrapper) return;
+
+          const actions = document.createElement('div');
+          actions.className = 'bubble-actions';
+
+          // 判断是否为居中气泡（通话气泡等）
+          const isCenterBubble = messageWrapper.classList.contains('center');
+
+          // 判断是否为系统消息
+          const isSystemMessage =
+            messageWrapper.classList.contains('system') || bubble.classList.contains('system-message');
+
+          if (isSystemMessage || isCenterBubble) {
+            // 系统消息和居中气泡只提供编辑和删除功能，并居中显示
+            actions.classList.add('system-center');
+            actions.innerHTML = `
+                <button class="action-btn edit-btn" title="修改"><i class="fa-solid fa-pencil"></i></button>
+                <button class="action-btn delete-btn" title="删除"><i class="fa-solid fa-trash"></i></button>
+            `;
+          } else {
+            // 判断是否为左侧气泡（friend类型的消息）
+            if (messageWrapper.classList.contains('friend')) {
+              actions.classList.add('left-side');
+            }
+
+            actions.innerHTML = `
+                <button class="action-btn quote-btn" title="引用"><i class="fa-solid fa-reply"></i></button>
+                <button class="action-btn edit-btn" title="修改"><i class="fa-solid fa-pencil"></i></button>
+                <button class="action-btn delete-btn" title="删除"><i class="fa-solid fa-trash"></i></button>
+            `;
+          }
+
+          messageWrapper.style.position = 'relative';
+          messageWrapper.appendChild(actions);
+          actions.style.display = 'flex';
+          currentBubbleActions = actions;
+
+          // 绑定事件
+          actions.querySelector('.edit-btn').onclick = e => {
+            e.stopPropagation();
+            editMessage(bubble);
+            hideBubbleActions();
+          };
+
+          // 只有非系统消息才有引用按钮
+          const quoteBtn = actions.querySelector('.quote-btn');
+          if (quoteBtn) {
+            quoteBtn.onclick = e => {
+              e.stopPropagation();
+              quoteMessage(bubble);
+              hideBubbleActions();
+            };
+          }
+
+          actions.querySelector('.delete-btn').onclick = e => {
+            e.stopPropagation();
+            const wrapper = bubble.closest('.message-wrapper');
+            enterMultiSelectMode(wrapper);
+            hideBubbleActions();
+          };
+        }
+
+        function hideBubbleActions() {
+          if (currentBubbleActions) {
+            currentBubbleActions.remove();
+            currentBubbleActions = null;
+          }
+        }
+
+        // 进入多选模式
+        function enterMultiSelectMode(defaultWrapper) {
+          multiSelectMode = true;
+          selectedMessages.clear();
+          container.classList.add('multi-select-mode');
+
+          // 在当前卡片内插入内联工具栏，避免遮挡
+          const currentCard = (defaultWrapper || container.querySelector('.message-wrapper'))?.closest('.message-card');
+          if (currentCard) {
+            if (!currentCard.querySelector('.multiselect-inline-toolbar')) {
+              const tpl = document.getElementById('inline-multiselect-template');
+              if (tpl && tpl.content) {
+                const node = tpl.content.firstElementChild.cloneNode(true);
+                currentCard.style.position = 'relative';
+                currentCard.appendChild(node);
+              }
+            }
+            const inlineBar = currentCard.querySelector('.multiselect-inline-toolbar');
+            if (inlineBar) inlineBar.style.display = 'block';
+          }
+
+          // 为所有消息添加勾选圆圈
+          container.querySelectorAll('.message-wrapper').forEach((wrapper, index) => {
+            if (!wrapper.querySelector('.checkbox-circle')) {
+              const checkbox = document.createElement('div');
+              checkbox.className = 'checkbox-circle';
+              checkbox.innerHTML = '<i class="fa-solid fa-check" style="display: none;"></i>';
+              wrapper.appendChild(checkbox);
+            }
+          });
+
+          // 默认选中当前触发的那一行
+          if (defaultWrapper) {
+            const checkbox = defaultWrapper.querySelector('.checkbox-circle');
+            if (checkbox) {
+              toggleMessageSelection(defaultWrapper, checkbox);
+            }
+          }
+        }
+
+        // 退出多选模式
+        function exitMultiSelectMode() {
+          multiSelectMode = false;
+          selectedMessages.clear();
+          container.classList.remove('multi-select-mode');
+          // 移除或隐藏内联工具栏
+          container.querySelectorAll('.multiselect-inline-toolbar').forEach(bar => {
+            bar.style.display = 'none';
+            bar.remove();
+          });
+
+          // 移除所有勾选圆圈
+          container.querySelectorAll('.checkbox-circle').forEach(checkbox => {
+            checkbox.remove();
+          });
+        }
+
+        // 切换消息选择状态
+        function toggleMessageSelection(wrapper, checkbox) {
+          const messageId = getMessageId(wrapper);
+
+          if (selectedMessages.has(messageId)) {
+            selectedMessages.delete(messageId);
+            checkbox.classList.remove('selected');
+            checkbox.querySelector('i').style.display = 'none';
+          } else {
+            selectedMessages.add(messageId);
+            checkbox.classList.add('selected');
+            checkbox.querySelector('i').style.display = 'block';
+          }
+
+          updateMultiselectToolbar();
+        }
+
+        function getMessageId(wrapper) {
+          const chatContent = wrapper.closest('.chat-content');
+          const chatTitle = chatContent.dataset.title;
+          const index = Array.from(chatContent.querySelectorAll('.message-wrapper')).indexOf(wrapper);
+          return `${chatTitle}-${index}`;
+        }
+
+        function updateMultiselectToolbar() {
+          const deleteBtn = document.getElementById('multiselect-delete');
+          deleteBtn.disabled = selectedMessages.size === 0;
+        }
+
+        // 编辑消息（仅界面编辑，不与酒馆交互）
+        function editMessage(bubble) {
+          // 获取当前气泡的文本内容和类型
+          let currentText = '';
+          let messageType = 'text';
+
+          if (bubble.classList.contains('system-message')) {
+            // 系统消息直接获取文本内容
+            currentText = bubble.textContent || bubble.innerText || '';
+            messageType = 'system';
+          } else if (
+            bubble.classList.contains('sticker-image') ||
+            (bubble.tagName === 'IMG' && bubble.classList.contains('sticker-image'))
+          ) {
+            // 表情包图片：从alt获取描述
+            currentText = bubble.alt || '';
+            messageType = 'sticker';
+            // 保存图片URL以便后续恢复
+            bubble.dataset.stickerUrl = bubble.src;
+          } else if (bubble.classList.contains('sticker-placeholder')) {
+            // 表情包占位符：从文本获取描述
+            const descDiv = bubble.querySelector('div[style*="font-size: 0.8em"]');
+            currentText = descDiv ? descDiv.textContent.trim() : bubble.textContent.trim();
+            messageType = 'sticker';
+          } else if (bubble.classList.contains('red-packet-bubble')) {
+            // 红包气泡：提取楼层格式 "金额>备注"
+            const amountEl = bubble.querySelector('.amount');
+            const memoEl = bubble.querySelector('.memo');
+            const amount = amountEl ? amountEl.textContent.replace('¥', '').trim() : '';
+            const memo = memoEl ? memoEl.textContent.trim() : '';
+            currentText = `${amount}>${memo}`;
+            messageType = 'redenvelope';
+          } else if (bubble.classList.contains('location-bubble')) {
+            // 定位气泡：从.location-text获取
+            const textDiv = bubble.querySelector('.location-text');
+            currentText = textDiv ? textDiv.textContent.trim() : '';
+            messageType = 'location';
+          } else if (bubble.classList.contains('image-preview-bubble')) {
+            // 图片气泡：从data-full-text获取
+            const fullText = bubble.dataset.fullText;
+            currentText = fullText ? unescape(fullText) : bubble.textContent || '';
+            messageType = 'media';
+          } else if (bubble.classList.contains('voice-bubble')) {
+            // 语音气泡
+            const extraInfo = bubble.closest('.message-bubble-container')?.querySelector('.message-extra-info');
+            currentText = extraInfo ? extraInfo.textContent.replace('转文本: ', '').trim() : '';
+            messageType = 'voice';
+          } else if (bubble.classList.contains('video-bubble')) {
+            // 视频/语音电话气泡
+            const titleEl = bubble.querySelector('.card-title');
+            const subtitleEl = bubble.querySelector('.card-subtitle');
+            currentText = titleEl ? titleEl.textContent.trim() : '';
+            if (subtitleEl && subtitleEl.textContent === '视频通话') {
+              messageType = 'videocall';
+            } else if (subtitleEl && subtitleEl.textContent === '语音电话') {
+              messageType = 'voicecall';
+            }
+          } else {
+            // 普通消息气泡
+            currentText = bubble.textContent || bubble.innerText || '';
+          }
+
+          showEditDialog(bubble, currentText, messageType);
+        }
+
+        // 引用消息
+        function quoteMessage(bubble) {
+          const messageWrapper = bubble.closest('.message-wrapper');
+          const chatContent = messageWrapper.closest('.chat-content');
+          const chatTitle = chatContent.dataset.title;
+          const messageText = bubble.textContent || bubble.innerText || '';
+
+          // 获取发送者名称
+          const usernameEl = messageWrapper.querySelector('.message-username');
+          const senderName = usernameEl ? usernameEl.textContent : '用户';
+
+          // 找到对应的输入框
+          const inputArea = chatContent.parentElement.querySelector('.chat-input-area');
+          const input = inputArea.querySelector('.chat-input');
+
+          if (input) {
+            // 设置为引用模式
+            activeModes[chatTitle] = 'quote';
+
+            // 设置引用内容到输入框的data属性中
+            input.dataset.quotedText = messageText;
+            input.dataset.quotedSender = senderName;
+
+            // 更新输入框占位符
+            const quotedPreview = `引用：${messageText.substring(0, 15)}${messageText.length > 15 ? '...' : ''}`;
+            updateInputPlaceholder(chatTitle, 'quote', quotedPreview);
+
+            // 激活引用模式的视觉提示
+            const card = chatContent.closest('.message-card');
+            card.querySelectorAll('.action-icon.mode-toggle-icon').forEach(icon => {
+              icon.classList.remove('active');
+            });
+
+            // 找到并激活引用按钮（如果存在）
+            const quoteIcon = card.querySelector('.action-icon[data-action="q"]');
+            if (quoteIcon) {
+              quoteIcon.classList.add('active');
+            }
+
+            // 聚焦到输入框
+            input.focus();
+          }
+        }
+
+        function showEditDialog(bubble, currentText, messageType = 'text') {
+          const popupOverlay = document.querySelector('.popup-overlay');
+
+          // 保存原始文本和消息类型到bubble的dataset中，供后续替换使用
+          bubble.dataset.originalText = currentText;
+          bubble.dataset.messageType = messageType;
+
+          const content = `
+            <h4 style="text-align: center; font-weight: bold; margin-bottom: 1em;">编辑消息</h4>
+            <textarea class="chat-input popup-input" id="edit-textarea" placeholder="编辑消息内容..." style="height: 80px; resize: vertical;">${currentText}</textarea>
+            <div class="popup-buttons">
+                <button class="send-button" id="edit-submit">确认</button>
+                <button class="send-button" id="edit-cancel" style="background: #666;">取消</button>
+            </div>`;
+
+          const popupContent = popupOverlay.querySelector('.popup-content');
+          popupContent.className = 'popup-content red-packet-popup';
+          PopupManager.show(popupOverlay, content);
+
+          popupContent.onclick = e => e.stopPropagation();
+
+          popupContent.querySelector('#edit-submit').onclick = async e => {
+            e.stopPropagation();
+            const newContent = popupContent.querySelector('#edit-textarea').value.trim();
+
+            if (!newContent) {
+              alert('消息内容不能为空');
+              return;
+            }
+
+            // 立即关闭弹窗并更新界面
+            PopupManager.hide(popupOverlay);
+
+            // 根据气泡类型更新内容
+            if (bubble.classList.contains('location-bubble')) {
+              // 定位气泡：只更新文字部分
+              const textDiv = bubble.querySelector('.location-text');
+              if (textDiv) textDiv.textContent = newContent;
+            } else if (
+              bubble.classList.contains('sticker-placeholder') ||
+              bubble.classList.contains('sticker-image') ||
+              (bubble.tagName === 'IMG' && bubble.classList.contains('sticker-image'))
+            ) {
+              // 表情包：保持图片或图标，只更新alt描述
+              if (bubble.tagName === 'IMG' && bubble.classList.contains('sticker-image')) {
+                // 如果是图片标签
+                const oldDescription = bubble.alt;
+                bubble.alt = newContent;
+
+                // 如果描述改变了，异步查找新图片
+                if (oldDescription !== newContent) {
+                  (async () => {
+                    const newImageUrl = await findStickerImageUrl(newContent);
+                    if (newImageUrl && bubble.parentNode) {
+                      // 保存旧的src，避免GIF重新播放
+                      const oldSrc = bubble.src;
+                      // 只有当URL不同时才更新
+                      if (oldSrc !== newImageUrl) {
+                        bubble.src = newImageUrl;
+                      }
+                    }
+                  })();
+                }
+              } else if (bubble.classList.contains('sticker-placeholder')) {
+                // 如果是占位符
+                const descDiv = bubble.querySelector('div[style*="font-size: 0.8em"]');
+                if (descDiv) {
+                  descDiv.textContent = newContent;
+                } else {
+                  bubble.textContent = newContent;
+                }
+
+                // 更新data属性
+                bubble.dataset.stickerDescription = escape(newContent);
+
+                // 异步查找并替换为图片
+                (async () => {
+                  const imageUrl = await findStickerImageUrl(newContent);
+                  if (imageUrl && bubble.parentNode) {
+                    const img = document.createElement('img');
+                    img.className = 'sticker-image';
+                    img.src = imageUrl;
+                    img.alt = newContent;
+                    img.style.cssText = 'max-width: 120px; max-height: 120px; display: block; object-fit: contain;';
+
+                    img.onerror = function () {
+                      this.outerHTML = `<div class='sticker-placeholder' data-sticker-description="${escape(newContent)}"><i class='fa-regular fa-face-laugh' style='font-size: 2em; margin: 0.2em;'></i><div style='font-size: 0.8em; color: var(--text-secondary);'>${newContent}</div></div>`;
+                    };
+
+                    bubble.replaceWith(img);
+                  }
+                })();
+              }
+            } else if (bubble.classList.contains('red-packet-bubble')) {
+              // 红包气泡：解析金额和备注
+              const parts = newContent.split('>');
+              const amount = parts[0] || '';
+              const memo = parts[1] || '恭喜发财';
+              const amountEl = bubble.querySelector('.amount');
+              const memoEl = bubble.querySelector('.memo');
+              if (amountEl) amountEl.textContent = `¥${amount}`;
+              if (memoEl) memoEl.textContent = memo;
+            } else {
+              // 普通气泡
+              bubble.textContent = newContent;
+            }
+
+            // 异步修改楼层中的消息
+            setTimeout(async () => {
+              try {
+                // 获取消息所在的聊天信息
+                const messageWrapper = bubble.closest('.message-wrapper');
+                const chatContent = messageWrapper.closest('.chat-content');
+                const chatCard = chatContent.closest('.message-card');
+                const chatTitle = unescape(chatCard.dataset.chatTitle);
+                const chatType = chatCard.dataset.chatType;
+
+                // 获取原始消息内容和类型（修改前的）
+                const originalContent = bubble.dataset.originalText;
+                const originalMessageType = bubble.dataset.messageType || 'text';
+
+                const currentId = getCurrentMessageId();
+                const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                if (latestText && originalContent) {
+                  // 使用新的函数来替换楼层中的特定消息
+                  const updatedHistory = replaceMessageInChatBlock(
+                    latestText,
+                    chatTitle,
+                    chatType,
+                    originalContent,
+                    newContent,
+                    originalMessageType,
+                  );
+
+                  if (updatedHistory !== latestText) {
+                    await setChatMessages([{ message_id: currentId, message: updatedHistory }], { refresh: 'none' });
+                  }
+                }
+              } catch (error) {
+                console.error('[修改弹窗] 修改楼层时出错:', error);
+              }
+            }, 0);
+          };
+
+          popupContent.querySelector('#edit-cancel').onclick = e => {
+            e.stopPropagation();
+            PopupManager.hide(popupOverlay);
+          };
+        }
+
+        // 删除选中的消息并写入楼层
+        async function deleteSelectedMessages() {
+          if (selectedMessages.size === 0) return;
+
+          // 获取要删除的消息内容
+          const messagesToDelete = [];
+          const sortedIds = Array.from(selectedMessages).sort((a, b) => {
+            const [, ia] = a.split('-');
+            const [, ib] = b.split('-');
+            return parseInt(ib) - parseInt(ia);
+          });
+
+          // 收集要删除的消息内容
+          for (const id of sortedIds) {
+            const [chatTitle, indexStr] = id.split('-');
+            const chatContent = container.querySelector(`.chat-content[data-title="${chatTitle}"]`);
+            if (!chatContent) continue;
+            const wrappers = chatContent.querySelectorAll('.message-wrapper');
+            const idx = parseInt(indexStr);
+            if (idx >= 0 && idx < wrappers.length) {
+              const target = wrappers[idx];
+              if (target) {
+                const bubble = target.querySelector('.message-bubble');
+                const systemMessage = target.querySelector('.system-message');
+                const stickerImg = target.querySelector('.sticker-image');
+                const stickerPlaceholder = target.querySelector('.sticker-placeholder');
+                let messageText = '';
+
+                if (bubble) {
+                  // 根据气泡类型获取正确的消息内容
+                  if (bubble.classList.contains('red-packet-bubble')) {
+                    // 红包气泡：从DOM结构中提取金额和备注
+                    const amountEl = bubble.querySelector('.amount');
+                    const memoEl = bubble.querySelector('.memo');
+                    const amount = amountEl ? amountEl.textContent.replace('¥', '').trim() : '';
+                    const memo = memoEl ? memoEl.textContent.trim() : '';
+                    messageText = `${amount}>${memo}`;
+                  } else if (bubble.classList.contains('image-preview-bubble')) {
+                    // 图片气泡：从data-full-text属性获取原始内容
+                    const fullText = bubble.dataset.fullText;
+                    if (fullText) {
+                      messageText = unescape(fullText);
+                    } else {
+                      messageText = bubble.textContent || bubble.innerText || '';
+                    }
+                  } else if (bubble.classList.contains('location-bubble')) {
+                    // 位置气泡：从.location-text获取位置信息
+                    const textDiv = bubble.querySelector('.location-text');
+                    messageText = textDiv ? textDiv.textContent.trim() : '';
+                  } else if (bubble.classList.contains('video-bubble')) {
+                    // 视频气泡：从.card-title获取视频内容
+                    const titleEl = bubble.querySelector('.card-title');
+                    messageText = titleEl ? titleEl.textContent.trim() : '';
+                  } else {
+                    // 普通文本消息
+                    messageText = bubble.textContent || bubble.innerText || '';
+                  }
+                } else if (stickerImg) {
+                  // 表情包图片（不在.message-bubble内）
+                  messageText = stickerImg.alt || '';
+                } else if (stickerPlaceholder) {
+                  // 表情包占位符（不在.message-bubble内）
+                  const descDiv = stickerPlaceholder.querySelector('div[style*="font-size: 0.8em"]');
+                  messageText = descDiv ? descDiv.textContent.trim() : stickerPlaceholder.textContent.trim();
+                } else if (systemMessage) {
+                  // 处理系统消息
+                  messageText = systemMessage.textContent || systemMessage.innerText || '';
+                }
+
+                if (messageText) {
+                  messagesToDelete.push({ chatTitle, messageText });
+                }
+                target.remove();
+              }
+            }
+          }
+
+          // 立即退出多选模式，提高响应速度
+          exitMultiSelectMode();
+
+          // 异步处理楼层删除，不阻塞UI
+          if (messagesToDelete.length > 0) {
+            setTimeout(async () => {
+              try {
+                const currentId = getCurrentMessageId();
+                const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                if (latestText) {
+                  // 为每个被删除的消息从楼层中删除对应的行
+                  let updatedHistory = latestText;
+                  let successCount = 0;
+
+                  for (const { chatTitle, messageText } of messagesToDelete) {
+                    const chatCard = document.querySelector(`.message-card[data-chat-title="${escape(chatTitle)}"]`);
+                    const chatType = chatCard?.dataset.chatType;
+
+                    if (chatType) {
+                      const previousHistory = updatedHistory;
+                      updatedHistory = deleteMessageFromChatBlock(updatedHistory, chatTitle, chatType, messageText);
+
+                      if (updatedHistory !== previousHistory) {
+                        successCount++;
+                      }
+                    }
+                  }
+
+                  if (updatedHistory !== latestText) {
+                    await setChatMessages([{ message_id: currentId, message: updatedHistory }], { refresh: 'none' });
+                  }
+                }
+              } catch (error) {
+                console.error('[删除消息] 从楼层删除时出错:', error);
+              }
+            }, 0);
+          }
+        }
+
+        function addLocalMessage(chatTitle, messageText, messageType = 'text') {
+          const chatContent = document.querySelector(`.chat-content[data-title="${chatTitle}"]`);
+          if (!chatContent) return;
+
+          // 系统消息特殊处理
+          if (messageType === 'system') {
+            const systemWrapper = document.createElement('div');
+            systemWrapper.className = 'message-wrapper system';
+            systemWrapper.innerHTML = `<div class="system-message">${messageText}</div>`;
+            chatContent.appendChild(systemWrapper);
+            chatContent.scrollTop = chatContent.scrollHeight;
+            return;
+          }
+
+          const messageWrapper = document.createElement('div');
+          messageWrapper.className = 'message-wrapper user';
+          const senderNameHtml = chatContent.classList.contains('private-chat')
+            ? ''
+            : `<div class="message-username">{{user}}</div>`;
+
+          let bubbleHtml = '',
+            extraInfoHtml = '';
+
+          switch (messageType) {
+            case 'quote': {
+              const parts = messageText.split('>');
+              const quoted = (parts[0] || '').trim();
+              const reply = (parts[1] || '').trim();
+              // 只提取引用文本内容，去掉发送者名称
+              const quotedText = quoted.includes(':') ? quoted.split(':').slice(1).join(':').trim() : quoted;
+              bubbleHtml = `<div class="message-bubble">${reply}</div>`;
+              extraInfoHtml = `<div class="message-extra-info">${quotedText}</div>`;
+              break;
+            }
+            case 'voice':
+              const duration = Math.max(1, Math.round(messageText.length / 4));
+              bubbleHtml = `<div class="message-bubble voice-bubble"><i class="fa-solid fa-waveform"></i> ${duration}s</div>`;
+              extraInfoHtml = `<div class="message-extra-info">转文本: ${messageText}</div>`;
+              break;
+            case 'media':
+              // 检查是否是<img>标签格式
+              if (messageText.includes('<img>') && messageText.includes('</img>')) {
+                const imgMatch = messageText.match(/<img>(.*?)<\/img>/);
+                if (imgMatch) {
+                  const imageUrl = imgMatch[1];
+                  bubbleHtml = `<div class="message-bubble image-preview-bubble" style="background-image: url('${imageUrl}'); background-size: cover; background-position: center;" data-full-text="${escape(messageText)}" onclick="showImagePreview('${imageUrl}', '图片')"></div>`;
+                } else {
+                  const displayText = messageText.length > 30 ? messageText.substring(0, 30) + '...' : messageText;
+                  bubbleHtml = `<div class="message-bubble image-preview-bubble" data-full-text="${escape(messageText)}">${displayText}</div>`;
+                }
+              } else {
+                const displayText = messageText.length > 30 ? messageText.substring(0, 30) + '...' : messageText;
+                bubbleHtml = `<div class="message-bubble image-preview-bubble" data-full-text="${escape(messageText)}">${displayText}</div>`;
+              }
+              break;
+            case 'location':
+              bubbleHtml = `<div class="message-bubble location-bubble"><div class="location-text">${messageText}</div><div class="location-map"></div></div>`;
+              break;
+            case 'videocall':
+            case 'voicecall':
+              // 通话内容不显示为气泡，跳过
+              break;
+            case 'sticker':
+              // 先显示占位符，然后异步查找图片
+              bubbleHtml = `<div class="sticker-placeholder" data-sticker-description="${escape(messageText)}"><i class="fa-regular fa-face-laugh" style="font-size: 2em; margin: 0.2em;"></i><div style="font-size: 0.8em; color: var(--text-secondary);">${messageText}</div></div>`;
+
+              // 异步查找并替换为图片
+              (async () => {
+                try {
+                  const imageUrl = await findStickerImageUrl(messageText);
+                  if (imageUrl) {
+                    const placeholders = chatContent.querySelectorAll(
+                      `.sticker-placeholder[data-sticker-description="${escape(messageText)}"]`,
+                    );
+                    placeholders.forEach(placeholder => {
+                      // 创建img元素而不是用outerHTML，这样可以更好地控制加载
+                      const img = document.createElement('img');
+                      img.className = 'sticker-image';
+                      img.src = imageUrl;
+                      img.alt = messageText;
+                      img.style.cssText = 'max-width: 120px; max-height: 120px; display: block; object-fit: contain;';
+
+                      img.onerror = function () {
+                        this.outerHTML = `<div class='sticker-placeholder'><i class='fa-regular fa-face-laugh' style='font-size: 2em; margin: 0.2em;'></i><div style='font-size: 0.8em; color: var(--text-secondary);'>${messageText}</div></div>`;
+                      };
+
+                      placeholder.replaceWith(img);
+                    });
+                  }
+                } catch (error) {
+                  console.error('[表情包加载] 加载表情包时出错:', error);
+                }
+              })();
+              break;
+            default:
+              bubbleHtml = `<div class="message-bubble">${messageText}</div>`;
+              break;
+          }
+
+          messageWrapper.innerHTML = `<div class="message-bubble-container">${senderNameHtml}${bubbleHtml}${extraInfoHtml}</div>`;
+          chatContent.appendChild(messageWrapper);
+          chatContent.scrollTop = chatContent.scrollHeight;
+        }
+
+        // 根据表情包描述从世界书中查找对应的图片URL
+        async function findStickerImageUrl(description) {
+          try {
+            console.log('[表情包] 开始查找表情包:', description);
+
+            // 获取所有世界书名称
+            const allWorldbookNames = getWorldbookNames();
+            console.log('[表情包] 所有世界书:', allWorldbookNames);
+
+            // 筛选出名为"表情包"或"sticker"的世界书（不区分大小写）
+            const stickerWorldbooks = allWorldbookNames.filter(name => {
+              const lowerName = name.toLowerCase();
+              return lowerName.includes('sticker') || lowerName.includes('表情包') || lowerName.includes('emoji');
+            });
+            console.log('[表情包] 筛选出的表情包世界书:', stickerWorldbooks);
+
+            // 如果找不到专门的表情包世界书，就在所有世界书中查找
+            const searchWorldbooks = stickerWorldbooks.length > 0 ? stickerWorldbooks : allWorldbookNames;
+            console.log('[表情包] 将要搜索的世界书:', searchWorldbooks);
+
+            // 在世界书中查找匹配的描述
+            for (const worldbookName of searchWorldbooks) {
+              try {
+                const entries = await getWorldbook(worldbookName);
+                if (!entries || !Array.isArray(entries)) {
+                  console.log(`[表情包] 世界书 "${worldbookName}" 没有条目`);
+                  continue;
+                }
+                console.log(`[表情包] 世界书 "${worldbookName}" 有 ${entries.length} 个条目`);
+
+                // 遍历所有条目，查找匹配描述的表情包
+                for (const entry of entries) {
+                  const content = entry.content || '';
+                  const lines = content.split('\n').filter(line => line.trim());
+
+                  for (const line of lines) {
+                    const colonIndex = line.indexOf(':');
+                    if (colonIndex > 0) {
+                      const entryDescription = line.substring(0, colonIndex).trim();
+                      let code = line.substring(colonIndex + 1).trim();
+
+                      // 如果描述匹配，返回图片URL
+                      if (entryDescription === description && code) {
+                        console.log('[表情包] 找到匹配的描述，原始code:', code);
+                        // 清理代码字符串（移除空格和引号）
+                        code = code.replace(/\s+/g, '').replace(/['"]/g, '');
+                        console.log('[表情包] 清理后的code:', code);
+
+                        const isPostImg = code.includes('/');
+                        const imageUrl = isPostImg
+                          ? `https://i.postimg.cc/${code}`
+                          : `https://files.catbox.moe/${code}`;
+                        console.log('[表情包] 生成的图片URL:', imageUrl);
+                        return imageUrl;
+                      }
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error(`[表情包] 获取世界书 "${worldbookName}" 失败:`, e);
+              }
+            }
+            console.log('[表情包] 未找到匹配的表情包');
+          } catch (error) {
+            console.error('[表情包] 查找错误:', error);
+          }
+          return null;
+        }
+
+        function parseChatData(textData) {
+          const chats = [];
+
+          const privateRegex = /<privatemsg\s+send="([^"]+)"\s+receive="([^"]+)">([\s\S]*?)<\/privatemsg>/g;
+          const groupRegex = /<groupmsg\s+title="([^"]+)"\s+send="([^"]+)"\s+receive="([^"]+)">([\s\S]*?)<\/groupmsg>/g;
+
+          let match;
+
+          // 解析私聊 <privatemsg>
+          while ((match = privateRegex.exec(textData)) !== null) {
+            const sendName = match[1],
+              receiveName = match[2],
+              content = match[3].trim();
+            const lines = content.split('\n').filter(line => line.trim() !== '');
+
+            const chatSession = {
+              type: '私聊',
+              title: receiveName === '{{user}}' ? sendName : receiveName,
+              send: sendName,
+              receive: receiveName,
+              members: [],
+              log: [],
+            };
+
+            for (const line of lines) {
+              // 解析系统消息：system:content
+              if (line.trim().startsWith('system')) {
+                const systemMatch = line.match(/system[：:]\s*(.+)/);
+                if (systemMatch) {
+                  chatSession.log.push({
+                    senderType: 's',
+                    content: systemMatch[1].trim(),
+                  });
+                }
+                continue;
+              }
+
+              // 解析消息：name|type:content
+              const parts = line.split('|').map(p => p.trim());
+              if (parts.length < 2) continue;
+
+              const senderName = parts[0];
+
+              // 解析类型和内容部分 type:content
+              const typePart = parts[1];
+              const typeMatch = typePart.match(/^([^:]+):(.*)$/);
+              if (!typeMatch) continue;
+
+              const contentType = typeMatch[1].trim();
+              const contentValue = typeMatch[2].trim();
+
+              // 判断是 send 还是 receive
+              const senderType = senderName === sendName ? 'send' : 'receive';
+
+              chatSession.log.push({
+                senderType,
+                senderName,
+                contentType,
+                content: contentValue,
+              });
+            }
+            chats.push(chatSession);
+          }
+
+          // 解析群聊 <groupmsg>
+          while ((match = groupRegex.exec(textData)) !== null) {
+            const chatTitle = match[1],
+              sendName = match[2],
+              receiveNames = match[3],
+              content = match[4].trim();
+            const lines = content.split('\n').filter(line => line.trim() !== '');
+
+            // 构建成员列表（send + receive）
+            const members = [sendName];
+            if (receiveNames) {
+              members.push(...receiveNames.split(',').map(m => m.trim()));
+            }
+
+            const chatSession = {
+              type: '群聊',
+              title: chatTitle,
+              send: sendName,
+              receive: receiveNames,
+              members: members,
+              log: [],
+            };
+
+            for (const line of lines) {
+              if (line.trim().startsWith('system')) {
+                const systemMatch = line.match(/system[：:]\s*(.+)/);
+                if (systemMatch) {
+                  chatSession.log.push({
+                    senderType: 's',
+                    content: systemMatch[1].trim(),
+                  });
+                }
+                continue;
+              }
+
+              const parts = line.split('|').map(p => p.trim());
+              if (parts.length < 2) continue;
+
+              const senderName = parts[0];
+              const typePart = parts[1];
+              const typeMatch = typePart.match(/^([^:]+):(.*)$/);
+              if (!typeMatch) continue;
+
+              const contentType = typeMatch[1].trim();
+              const contentValue = typeMatch[2].trim();
+
+              chatSession.log.push({
+                senderType: 'send',
+                senderName,
+                contentType,
+                content: contentValue,
+              });
+            }
+            chats.push(chatSession);
+          }
+
+          return chats;
+        }
+
+        // 将解析后的聊天数据转换回文本格式
+        function stringifyChatData(chatData) {
+          let result = '';
+          for (const chat of chatData) {
+            if (chat.send && chat.receive) {
+              // 私聊
+              result += `<privatemsg send="${chat.send}" receive="${chat.receive}">\n`;
+
+              for (const msg of chat.log) {
+                if (msg.senderType === 's') {
+                  result += `system: ${msg.content}\n`;
+                } else {
+                  const senderName = msg.senderName || '未知';
+                  const messageType = msg.contentType;
+                  result += `${senderName} | ${messageType}: ${msg.content}\n`;
+                }
+              }
+
+              result += `</privatemsg>\n\n`;
+            } else {
+              // 群聊
+              const title = chat.title;
+              const sendName = chat.send || '';
+              const receiveNames = chat.receive || '';
+              result += `<groupmsg title="${title}" send="${sendName}" receive="${receiveNames}">\n`;
+
+              for (const msg of chat.log) {
+                if (msg.senderType === 's') {
+                  result += `system: ${msg.content}\n`;
+                } else {
+                  const senderName = msg.senderName || '未知';
+                  const messageType = msg.contentType;
+                  result += `${senderName} | ${messageType}: ${msg.content}\n`;
+                }
+              }
+
+              result += `</groupmsg>\n\n`;
+            }
+          }
+          return result.trim();
+        }
+
+        // 更新楼层中的聊天数据，保留其他内容（如 <chat> 标签）
+        function updateChatDataInHistory(originalHistory, updatedChatData) {
+          let result = originalHistory;
+
+          for (const chat of updatedChatData) {
+            let newChatBlock = '';
+            let chatBlockRegex;
+
+            if (chat.send && chat.receive) {
+              // 私聊
+              newChatBlock = `<privatemsg send="${chat.send}" receive="${chat.receive}">\n`;
+
+              for (const msg of chat.log) {
+                if (msg.senderType === 's') {
+                  newChatBlock += `system: ${msg.content}\n`;
+                } else {
+                  const senderName = msg.senderName || '未知';
+                  const messageType = msg.contentType;
+                  newChatBlock += `${senderName} | ${messageType}: ${msg.content}\n`;
+                }
+              }
+
+              newChatBlock += `</privatemsg>`;
+
+              chatBlockRegex = new RegExp(
+                `<privatemsg\\s+send="${escapeRegExp(chat.send)}"\\s+receive="${escapeRegExp(chat.receive)}"[^>]*>[\\s\\S]*?<\\/privatemsg>`,
+                'g',
+              );
+            } else {
+              // 群聊
+              const title = chat.title;
+              const sendName = chat.send || '';
+              const receiveNames = chat.receive || '';
+              newChatBlock = `<groupmsg title="${title}" send="${sendName}" receive="${receiveNames}">\n`;
+
+              for (const msg of chat.log) {
+                if (msg.senderType === 's') {
+                  newChatBlock += `system: ${msg.content}\n`;
+                } else {
+                  const senderName = msg.senderName || '未知';
+                  const messageType = msg.contentType;
+                  newChatBlock += `${senderName} | ${messageType}: ${msg.content}\n`;
+                }
+              }
+
+              newChatBlock += `</groupmsg>`;
+
+              chatBlockRegex = new RegExp(
+                `<groupmsg\\s+title="${escapeRegExp(title)}"[^>]*>[\\s\\S]*?<\\/groupmsg>`,
+                'g',
+              );
+            }
+
+            result = result.replace(chatBlockRegex, newChatBlock);
+          }
+
+          return result;
+        }
+
+        function escapeRegExp(string) {
+          return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // 添加消息到聊天块
+        function addMessageToChatBlock(fullHistory, chatTitle, chatType, newMessage) {
+          if (!newMessage || !newMessage.trim()) return fullHistory;
+
+          const messageToInsert = newMessage.trim();
+
+          if (chatType === '群聊') {
+            // 群聊
+            const groupRegex = new RegExp(
+              `(<groupmsg\\s+title="${escapeRegExp(chatTitle)}"[^>]*>)([\\s\\S]*?)(<\\/groupmsg>)`,
+              'i',
+            );
+
+            const match = fullHistory.match(groupRegex);
+            if (match) {
+              const [, openingTag, existingContent, closingTag] = match;
+              const updatedContent = existingContent.trim() + '\n' + messageToInsert;
+              const updatedBlock = openingTag + '\n' + updatedContent + '\n' + closingTag;
+              return fullHistory.replace(groupRegex, updatedBlock);
+            }
+          } else {
+            // 私聊：匹配包含该 chatTitle 的私聊
+            const allPrivateMatches = [
+              ...fullHistory.matchAll(
+                /<privatemsg\s+send="([^"]+)"\s+receive="([^"]+)"[^>]*>([\s\S]*?)<\/privatemsg>/g,
+              ),
+            ];
+            for (const match of allPrivateMatches) {
+              const send = match[1];
+              const receive = match[2];
+              const displayTitle = receive === '{{user}}' ? send : receive;
+
+              if (displayTitle === chatTitle) {
+                const specificRegex = new RegExp(
+                  `(<privatemsg\\s+send="${escapeRegExp(send)}"\\s+receive="${escapeRegExp(receive)}"[^>]*>)([\\s\\S]*?)(<\\/privatemsg>)`,
+                  'i',
+                );
+                const specificMatch = fullHistory.match(specificRegex);
+                if (specificMatch) {
+                  const [, openingTag, existingContent, closingTag] = specificMatch;
+                  const updatedContent = existingContent.trim() + '\n' + messageToInsert;
+                  const updatedBlock = openingTag + '\n' + updatedContent + '\n' + closingTag;
+                  return fullHistory.replace(specificRegex, updatedBlock);
+                }
+              }
+            }
+          }
+
+          return fullHistory;
+        }
+
+        // 替换楼层中的特定消息
+        function replaceMessageInChatBlock(
+          fullHistory,
+          chatTitle,
+          chatType,
+          originalMessage,
+          newMessage,
+          messageType = 'text',
+        ) {
+          if (!originalMessage || !newMessage) return fullHistory;
+
+          let chatBlockRegex;
+          let match;
+
+          if (chatType === '群聊') {
+            // 群聊
+            chatBlockRegex = new RegExp(
+              `(<groupmsg\\s+title="${escapeRegExp(chatTitle)}"[^>]*>)([\\s\\S]*?)(<\\/groupmsg>)`,
+              'i',
+            );
+
+            match = fullHistory.match(chatBlockRegex);
+            if (match) {
+              const [, openingTag, existingContent, closingTag] = match;
+              const lines = existingContent.split('\n');
+              let foundIndex = -1;
+
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.includes(originalMessage) && line.includes('{{user}} |')) {
+                  const lineTypeMatch = line.match(/\|([^:]+):/);
+                  if (lineTypeMatch) {
+                    const lineType = lineTypeMatch[1].trim();
+                    if (lineType === messageType) {
+                      foundIndex = i;
+                      break;
+                    }
+                  } else {
+                    foundIndex = i;
+                    break;
+                  }
+                }
+              }
+
+              if (foundIndex >= 0) {
+                const oldLine = lines[foundIndex];
+                let actualMessageType = 'text';
+                const typeMatch = oldLine.match(/\|([^:]+):/);
+                if (typeMatch) {
+                  actualMessageType = typeMatch[1].trim();
+                }
+
+                lines[foundIndex] = `{{user}} | ${actualMessageType}: ${newMessage}`;
+                const updatedContent = lines.join('\n');
+                const updatedBlock = openingTag + '\n' + updatedContent + '\n' + closingTag;
+                return fullHistory.replace(chatBlockRegex, updatedBlock);
+              }
+            }
+          } else {
+            // 私聊
+            const allPrivateMatches = [
+              ...fullHistory.matchAll(
+                /<privatemsg\s+send="([^"]+)"\s+receive="([^"]+)"[^>]*>([\s\S]*?)<\/privatemsg>/g,
+              ),
+            ];
+            for (const privateMatch of allPrivateMatches) {
+              const send = privateMatch[1];
+              const receive = privateMatch[2];
+              const displayTitle = receive === '{{user}}' ? send : receive;
+
+              if (displayTitle === chatTitle) {
+                chatBlockRegex = new RegExp(
+                  `(<privatemsg\\s+send="${escapeRegExp(send)}"\\s+receive="${escapeRegExp(receive)}"[^>]*>)([\\s\\S]*?)(<\\/privatemsg>)`,
+                  'i',
+                );
+
+                match = fullHistory.match(chatBlockRegex);
+                if (match) {
+                  const [, openingTag, existingContent, closingTag] = match;
+                  const lines = existingContent.split('\n');
+                  let foundIndex = -1;
+
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (line.includes(originalMessage) && line.includes('{{user}} |')) {
+                      const lineTypeMatch = line.match(/\|([^:]+):/);
+                      if (lineTypeMatch) {
+                        const lineType = lineTypeMatch[1].trim();
+                        if (lineType === messageType) {
+                          foundIndex = i;
+                          break;
+                        }
+                      } else {
+                        foundIndex = i;
+                        break;
+                      }
+                    }
+                  }
+
+                  if (foundIndex >= 0) {
+                    const oldLine = lines[foundIndex];
+                    let actualMessageType = 'text';
+                    const typeMatch = oldLine.match(/\|([^:]+):/);
+                    if (typeMatch) {
+                      actualMessageType = typeMatch[1].trim();
+                    }
+
+                    lines[foundIndex] = `{{user}} | ${actualMessageType}: ${newMessage}`;
+                    const updatedContent = lines.join('\n');
+                    const updatedBlock = openingTag + '\n' + updatedContent + '\n' + closingTag;
+                    return fullHistory.replace(chatBlockRegex, updatedBlock);
+                  }
+                }
+                break;
+              }
+            }
+          }
+
+          return fullHistory;
+        }
+
+        // 从楼层中删除特定消息
+        function deleteMessageFromChatBlock(fullHistory, chatTitle, chatType, messageText) {
+          if (!messageText) return fullHistory;
+
+          let chatBlockRegex;
+          let match;
+
+          const messageTypes = [
+            'text:',
+            'media:',
+            'voice:',
+            'redenvelope:',
+            'location:',
+            'videocall:',
+            'voicecall:',
+            'sticker:',
+            'quote:',
+          ];
+
+          if (chatType === '群聊') {
+            // 群聊
+            chatBlockRegex = new RegExp(
+              `(<groupmsg\\s+title="${escapeRegExp(chatTitle)}"[^>]*>)([\\s\\S]*?)(<\\/groupmsg>)`,
+              'i',
+            );
+
+            match = fullHistory.match(chatBlockRegex);
+            if (match) {
+              const [, openingTag, existingContent, closingTag] = match;
+              const lines = existingContent.split('\n');
+              let foundIndex = -1;
+
+              for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line.includes(messageText)) continue;
+
+                if (line.includes('|') && messageTypes.some(type => line.includes(type))) {
+                  const exactPatterns = messageTypes.flatMap(type => [
+                    `${type} ${messageText}`,
+                    `${type}${messageText}`,
+                  ]);
+
+                  if (exactPatterns.some(pattern => line.includes(pattern))) {
+                    foundIndex = i;
+                    break;
+                  }
+
+                  if (foundIndex < 0) foundIndex = i;
+                }
+              }
+
+              if (foundIndex >= 0) {
+                lines.splice(foundIndex, 1);
+                const updatedContent = lines.join('\n');
+                const updatedBlock = openingTag + '\n' + updatedContent + '\n' + closingTag;
+                return fullHistory.replace(chatBlockRegex, updatedBlock);
+              }
+            }
+          } else {
+            // 私聊
+            const allPrivateMatches = [
+              ...fullHistory.matchAll(
+                /<privatemsg\s+send="([^"]+)"\s+receive="([^"]+)"[^>]*>([\s\S]*?)<\/privatemsg>/g,
+              ),
+            ];
+            for (const privateMatch of allPrivateMatches) {
+              const send = privateMatch[1];
+              const receive = privateMatch[2];
+              const displayTitle = receive === '{{user}}' ? send : receive;
+
+              if (displayTitle === chatTitle) {
+                chatBlockRegex = new RegExp(
+                  `(<privatemsg\\s+send="${escapeRegExp(send)}"\\s+receive="${escapeRegExp(receive)}"[^>]*>)([\\s\\S]*?)(<\\/privatemsg>)`,
+                  'i',
+                );
+
+                match = fullHistory.match(chatBlockRegex);
+                if (match) {
+                  const [, openingTag, existingContent, closingTag] = match;
+                  const lines = existingContent.split('\n');
+                  let foundIndex = -1;
+
+                  for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line.includes(messageText)) continue;
+
+                    if (line.includes('|') && messageTypes.some(type => line.includes(type))) {
+                      const exactPatterns = messageTypes.flatMap(type => [
+                        `${type} ${messageText}`,
+                        `${type}${messageText}`,
+                      ]);
+
+                      if (exactPatterns.some(pattern => line.includes(pattern))) {
+                        foundIndex = i;
+                        break;
+                      }
+
+                      if (foundIndex < 0) foundIndex = i;
+                    }
+                  }
+
+                  if (foundIndex >= 0) {
+                    lines.splice(foundIndex, 1);
+                    const updatedContent = lines.join('\n');
+                    const updatedBlock = openingTag + '\n' + updatedContent + '\n' + closingTag;
+                    return fullHistory.replace(chatBlockRegex, updatedBlock);
+                  }
+                }
+                break;
+              }
+            }
+          }
+
+          return fullHistory;
+        }
+
+        // 发起通话申请（语音/视频通用）
+        async function showCallRequestPopup(card, callType) {
+          const chatType = card.dataset.chatType;
+          const chatTitle = unescape(card.dataset.chatTitle);
+          const chatContent = document.querySelector(`.chat-content[data-title="${chatTitle}"]`);
+          if (!chatContent) return;
+
+          const icon = CallUtils.getIcon(callType);
+          const callTypeText = `${CallUtils.getText(callType)}电话`;
+
+          // 1. 添加"等待接通中"的气泡
+          const bubbleContent = `<i class="fa-solid ${icon}"></i><span>等待接通中……</span>`;
+          const wrapper = createMessageBubble('call-waiting-bubble', bubbleContent, { callType });
+
+          const fragment = document.createDocumentFragment();
+          fragment.appendChild(wrapper);
+          chatContent.appendChild(fragment);
+          chatContent.scrollTop = chatContent.scrollHeight;
+
+          // 2. 写入系统消息到楼层
+          setTimeout(async () => {
+            try {
+              const currentId = getCurrentMessageId();
+              const latestText = getChatMessages(currentId)[0]?.message || '';
+
+              if (latestText) {
+                const systemMessage = `system: {{user}}申请接通${chatTitle}的${callTypeText}`;
+                const updatedHistory = addMessageToChatBlock(latestText, chatTitle, chatType, systemMessage);
+
+                if (updatedHistory !== latestText) {
+                  await setChatMessages([{ message_id: currentId, message: updatedHistory }], { refresh: 'none' });
+                }
+              }
+            } catch (error) {
+              console.error(`[${callTypeText}] 写入楼层时出错:`, error);
+            }
+          }, 0);
+        }
+
+        // 显示通话历史记录（只读模式，用于已结束的通话）
+        function showCallHistoryPopup(card, callType) {
+          const popupOverlay = card.querySelector('.popup-overlay');
+          const chatType = card.dataset.chatType;
+          const chatTitle = unescape(card.dataset.chatTitle);
+
+          // 获取历史通话消息
+          const callMessages = [];
+          try {
+            const currentId = getCurrentMessageId();
+            const latestText = getChatMessages(currentId)[0]?.message || '';
+            if (latestText) {
+              const chatData = parseChatData(latestText);
+              const currentChat = chatData.find(c => c.title === chatTitle);
+              if (currentChat) {
+                const messageType = callType === 'video' ? 'videocall' : 'voicecall';
+                currentChat.log.forEach(msg => {
+                  if (msg.contentType === messageType) {
+                    const senderName = msg.senderName || '未知';
+                    const displayMessage = `${senderName}：${msg.content}`;
+                    callMessages.push(displayMessage);
+                  }
+                });
+              }
+            }
+          } catch (error) {
+            console.error('[通话历史] 获取历史记录失败:', error);
+          }
+
+          const callTypeText = callType === 'video' ? '视频通话记录' : '语音通话记录';
+          const content = `
+              <div style="display: flex; flex-direction: column; height: 100%; max-height: calc(80vh - 2em);">
+                <h4 style="flex-shrink: 0; text-align: center; font-weight: bold; margin: 0 0 1em 0; padding-bottom: 0.5em; border-bottom: 1px solid var(--border);">${callTypeText}</h4>
+                <div id="call-history-container" style="flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0.3em; background: var(--bg-surface); border-radius: 8px; min-height: 200px; max-height: calc(80vh - 8em); font-size: 0.95em;">
+                  ${callMessages.length > 0 ? callMessages.map((msg, index) => `<div style="padding: 8px 0; word-wrap: break-word; ${index > 0 ? 'border-top: 1px solid var(--border);' : ''}">${msg}</div>`).join('') : '<div style="color: var(--text-secondary); text-align: center;">暂无通话记录</div>'}
+                </div>
+              </div>`;
+
+          const popupContent = popupOverlay.querySelector('.popup-content');
+          popupContent.className = 'popup-content call-popup';
+
+          PopupManager.resetOverlayStyle(popupOverlay);
+
+          PopupManager.show(popupOverlay, content);
+
+          // 点击遮罩层关闭
+          popupOverlay.onclick = () => {
+            PopupManager.hide(popupOverlay);
+          };
+
+          popupContent.onclick = e => e.stopPropagation();
+        }
+
+        // 显示通话内容输入弹窗（通话接通后）
+        function showCallContentPopup(card, callType) {
+          const popupOverlay = card.querySelector('.popup-overlay');
+          const chatType = card.dataset.chatType;
+          const chatTitle = unescape(card.dataset.chatTitle);
+
+          // 获取历史通话消息（只从楼层中获取实际的通话内容，并显示发送人）
+          const callMessages = [];
+          try {
+            const currentId = getCurrentMessageId();
+            const latestText = getChatMessages(currentId)[0]?.message || '';
+            if (latestText) {
+              const chatData = parseChatData(latestText);
+              const currentChat = chatData.find(c => c.title === chatTitle);
+              if (currentChat) {
+                const messageType = callType === 'video' ? 'videocall' : 'voicecall';
+                currentChat.log.forEach(msg => {
+                  if (msg.contentType === messageType) {
+                    // 格式化消息：显示发送人名称
+                    const senderName = msg.senderName || '未知';
+                    const displayMessage = `${senderName}：${msg.content}`;
+                    callMessages.push(displayMessage);
+                  }
+                });
+              }
+            }
+          } catch (error) {
+            console.error('[通话] 获取历史记录失败:', error);
+          }
+
+          // 不再需要单独的historyHtml，直接在content中处理
+
+          const content = `
+            <div style="display: flex; flex-direction: column; height: 100%; max-height: calc(80vh - 2em);">
+              <div id="call-history-container" style="flex: 1; overflow-y: auto; overflow-x: hidden; margin-bottom: 1em; padding: 0.3em; background: var(--bg-surface); border-radius: 8px; min-height: 150px; max-height: calc(80vh - 12em); font-size: 0.95em;">
+                ${callMessages.length > 0 ? callMessages.map((msg, index) => `<div class="call-message-item" data-message-index="${index}" style="padding: 8px 0; word-wrap: break-word; cursor: pointer; position: relative; ${index > 0 ? 'border-top: 1px solid var(--border);' : ''}">${msg}</div>`).join('') : '<div style="color: var(--text-secondary); text-align: center;">暂无通话记录</div>'}
+              </div>
+              <div style="flex-shrink: 0;">
+                <input type="text" class="chat-input popup-input" id="call-content-input" placeholder="描述通话内容..." autocomplete="off" spellcheck="false">
+                <div class="popup-buttons" style="margin-top: 0.5em;">
+                  <button class="send-button" id="call-submit">发送</button>
+                  <button class="send-button" id="call-hangup" style="background: #f44336;">挂断</button>
+                </div>
+              </div>
+            </div>`;
+
+          const popupContent = popupOverlay.querySelector('.popup-content');
+          popupContent.className = 'popup-content call-popup';
+
+          // 重置overlay样式，确保居中显示
+          PopupManager.resetOverlayStyle(popupOverlay);
+
+          PopupManager.show(popupOverlay, content);
+
+          popupContent.onclick = e => e.stopPropagation();
+
+          setTimeout(() => {
+            // 自动滚动到最下方显示最新消息
+            const historyContainer = popupContent.querySelector('#call-history-container');
+            if (historyContainer) {
+              historyContainer.scrollTop = historyContainer.scrollHeight;
+            }
+
+            const input = popupContent.querySelector('#call-content-input');
+            if (input) {
+              input.focus();
+
+              // 阻止通话界面输入框的回车事件冒泡到全局
+              input.addEventListener('keypress', e => {
+                if (e.key === 'Enter') {
+                  e.stopPropagation();
+                  e.preventDefault();
+
+                  // 触发发送按钮点击
+                  const submitBtn = popupContent.querySelector('#call-submit');
+                  if (submitBtn) {
+                    submitBtn.click();
+                  }
+                }
+              });
+            }
+          }, 250);
+
+          popupContent.querySelector('#call-submit').onclick = async e => {
+            e.stopPropagation();
+            const inputEl = popupContent.querySelector('#call-content-input');
+            const callContent = inputEl.value.trim();
+            if (!callContent) return;
+
+            // 立即清空输入框并聚焦
+            inputEl.value = '';
+            inputEl.focus();
+
+            // 立即更新弹窗中的历史记录显示
+            const historyContainer = popupContent.querySelector('#call-history-container');
+            if (historyContainer) {
+              // 如果是空状态提示，先清空
+              if (historyContainer.querySelector('[style*="text-align: center"]')) {
+                historyContainer.innerHTML = '';
+              }
+
+              const newRecord = document.createElement('div');
+              newRecord.className = 'call-message-item';
+              newRecord.dataset.messageIndex = historyContainer.querySelectorAll('.call-message-item').length;
+              newRecord.style.cssText = 'padding: 8px 0; word-wrap: break-word; cursor: pointer; position: relative;';
+              if (historyContainer.children.length > 0) {
+                newRecord.style.borderTop = '1px solid var(--border)';
+              }
+              // 显示发送人名称（{{user}}）
+              newRecord.textContent = `{{user}}：${callContent}`;
+              historyContainer.appendChild(newRecord);
+
+              // 滚动到最底部显示最新消息
+              historyContainer.scrollTop = historyContainer.scrollHeight;
+            }
+
+            // 异步写入楼层，不阻塞UI
+            setTimeout(async () => {
+              try {
+                const currentId = getCurrentMessageId();
+                const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                if (latestText) {
+                  const messageType = callType === 'video' ? 'videocall' : 'voicecall';
+                  const callMessage = `{{user}} | ${messageType}: ${callContent}`;
+
+                  const updatedHistory = addMessageToChatBlock(latestText, chatTitle, chatType, callMessage);
+
+                  if (updatedHistory !== latestText) {
+                    await setChatMessages([{ message_id: currentId, message: updatedHistory }], { refresh: 'none' });
+                    console.log('[通话] 通话内容已写入楼层');
+                    rawData = updatedHistory;
+                  }
+                }
+              } catch (error) {
+                console.error('[通话] 写入楼层时出错:', error);
+              }
+            }, 0);
+          };
+
+          // 挂断按钮
+          popupContent.querySelector('#call-hangup').onclick = async e => {
+            e.stopPropagation();
+
+            try {
+              const currentId = getCurrentMessageId();
+              const latestText = getChatMessages(currentId)[0]?.message || '';
+
+              if (latestText) {
+                const callTypeText = callType === 'video' ? '视频' : '语音';
+                const systemMessage = `system: {{user}}挂断了${callTypeText}电话`;
+                const updatedHistory = addMessageToChatBlock(latestText, chatTitle, chatType, systemMessage);
+
+                if (updatedHistory !== latestText) {
+                  await setChatMessages([{ message_id: currentId, message: updatedHistory }], { refresh: 'none' });
+                  console.log('[通话-挂断] 挂断消息已写入楼层');
+
+                  // 更新 rawData
+                  rawData = updatedHistory;
+
+                  // 立即刷新界面，将通话中气泡改为已结束
+                  const chatContentEl = document.querySelector(`.chat-content[data-title="${chatTitle}"]`);
+                  if (chatContentEl) {
+                    const callBubbles = chatContentEl.querySelectorAll('.call-accepted-bubble');
+                    const icon = CallUtils.getIcon(callType);
+                    const callText = CallUtils.getText(callType);
+
+                    for (const bubble of callBubbles) {
+                      if (bubble.dataset.callType === callType) {
+                        bubble.className = 'message-bubble call-ended-bubble';
+                        bubble.dataset.callType = callType;
+                        bubble.innerHTML = `<i class="fa-solid ${icon}"></i><span>${callText}通话已结束</span>`;
+
+                        bubble.onclick = () => {
+                          const card = chatContentEl.closest('.message-card');
+                          showCallHistoryPopup(card, callType);
+                        };
+                      }
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              console.error('[通话-挂断] 写入楼层时出错:', error);
+            }
+
+            PopupManager.hide(popupOverlay);
+          };
+
+          // 为通话消息项添加长按功能（延迟执行确保DOM渲染完成）
+          setTimeout(() => {
+            const historyContainer = popupContent.querySelector('#call-history-container');
+            if (historyContainer) {
+              setupCallMessageLongPress(historyContainer, chatTitle, chatType, callType);
+            }
+          }, 100);
+        }
+
+        // 通话类型工具函数
+        const CallUtils = {
+          getIcon: callType => (callType === 'video' ? 'fa-video' : 'fa-phone'),
+          getText: callType => (callType === 'video' ? '视频' : '语音'),
+          isVideo: callType => callType === 'video',
+        };
+
+        // 更新通话气泡状态
+        function updateCallBubbleState(chatTitle, callType, state) {
+          const chatContentEl = document.querySelector(`.chat-content[data-title="${chatTitle}"]`);
+          if (!chatContentEl) return;
+
+          const callBubbles = chatContentEl.querySelectorAll('.call-waiting-bubble, .call-request-bubble');
+
+          // 找到最后一个匹配的通话申请气泡
+          let targetBubble = null;
+          for (let i = callBubbles.length - 1; i >= 0; i--) {
+            if (callBubbles[i].dataset.callType === callType) {
+              targetBubble = callBubbles[i];
+              break;
+            }
+          }
+
+          if (!targetBubble) return;
+
+          const icon = CallUtils.getIcon(callType);
+          const callText = CallUtils.getText(callType);
+
+          const stateConfig = {
+            accepted: {
+              className: 'call-accepted-bubble',
+              text: `${callText}通话中`,
+              clickable: true,
+            },
+            rejected: {
+              className: 'call-rejected-bubble',
+              text: `${callText}通话已拒绝`,
+              clickable: false,
+            },
+          };
+
+          const config = stateConfig[state];
+          if (!config) return;
+
+          targetBubble.className = `message-bubble ${config.className}`;
+          targetBubble.innerHTML = `<i class="fa-solid ${icon}"></i><span>${config.text}</span>`;
+
+          if (config.clickable) {
+            targetBubble.onclick = () => {
+              const card = chatContentEl.closest('.message-card');
+              showCallContentPopup(card, callType);
+            };
+          }
+
+          chatContentEl.scrollTop = chatContentEl.scrollHeight;
+        }
+
+        // 创建消息气泡
+        function createMessageBubble(className, content, dataAttributes = {}) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'message-wrapper center';
+
+          const bubble = document.createElement('div');
+          bubble.className = `message-bubble ${className}`;
+
+          Object.entries(dataAttributes).forEach(([key, value]) => {
+            bubble.dataset[key] = value;
+          });
+
+          bubble.innerHTML = content;
+          wrapper.appendChild(bubble);
+
+          return wrapper;
+        }
+
+        // 通用长按处理器
+        function createLongPressHandler(element, selector, onLongPress, delay = 500) {
+          let timer = null;
+
+          const handleStart = (e, clientX, clientY) => {
+            const target = e.target.closest(selector);
+            if (!target) return;
+
+            const startX = clientX;
+            const startY = clientY;
+
+            timer = setTimeout(() => onLongPress(target), delay);
+
+            const handleMove = moveEvent => {
+              const moveX = moveEvent.clientX || moveEvent.touches?.[0]?.clientX;
+              const moveY = moveEvent.clientY || moveEvent.touches?.[0]?.clientY;
+              if (Math.abs(moveX - startX) > 10 || Math.abs(moveY - startY) > 10) {
+                clearTimeout(timer);
+                document.removeEventListener('mousemove', handleMove);
+                document.removeEventListener('touchmove', handleMove);
+              }
+            };
+
+            const cleanup = () => {
+              document.removeEventListener('mousemove', handleMove);
+              document.removeEventListener('touchmove', handleMove);
+              document.removeEventListener('mouseup', cleanup);
+              document.removeEventListener('touchend', cleanup);
+              document.removeEventListener('touchcancel', cleanup);
+            };
+
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('touchmove', handleMove, { passive: true });
+            document.addEventListener('mouseup', cleanup);
+            document.addEventListener('touchend', cleanup);
+            document.addEventListener('touchcancel', cleanup);
+          };
+
+          element.addEventListener('mousedown', e => handleStart(e, e.clientX, e.clientY));
+          element.addEventListener('touchstart', e => {
+            const touch = e.touches[0];
+            handleStart(e, touch.clientX, touch.clientY);
+          });
+
+          element.addEventListener('mouseup', () => clearTimeout(timer));
+          element.addEventListener('touchend', () => clearTimeout(timer));
+
+          return () => {
+            clearTimeout(timer);
+          };
+        }
+
+        // 为通话消息项设置长按功能
+        function setupCallMessageLongPress(historyContainer, chatTitle, chatType, callType) {
+          // 长按处理函数
+          function handleCallMessageLongPress(messageItem) {
+            // 显示操作菜单
+            const existingActions = historyContainer.querySelector('.call-message-actions');
+            if (existingActions) existingActions.remove();
+
+            const actions = document.createElement('div');
+            actions.className = 'call-message-actions';
+            actions.style.cssText = `
+              position: absolute;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -120%);
+              display: flex;
+              background: var(--bg-surface);
+              border: 1px solid var(--border);
+              border-radius: 6px;
+              padding: 2px;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+              z-index: 10000;
+            `;
+            actions.innerHTML = `
+              <button class="action-btn edit-btn" title="修改" style="width: 22px; height: 22px; border: none; background: none; margin: 0 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.7em; color: var(--text-secondary);"><i class="fa-solid fa-pencil"></i></button>
+              <button class="action-btn delete-btn" title="删除" style="width: 22px; height: 22px; border: none; background: none; margin: 0 1px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.7em; color: var(--text-secondary);"><i class="fa-solid fa-trash"></i></button>
+            `;
+
+            messageItem.appendChild(actions);
+
+            // 编辑按钮
+            actions.querySelector('.edit-btn').onclick = async e => {
+              e.stopPropagation();
+              const messageIndex = parseInt(messageItem.dataset.messageIndex);
+              const messageText = messageItem.textContent;
+
+              // 提取消息内容（去除发送人名称）
+              const colonIndex = messageText.indexOf('：');
+              const originalContent = colonIndex > 0 ? messageText.substring(colonIndex + 1).trim() : messageText;
+
+              // 创建自定义编辑弹窗
+              const editPopup = document.createElement('div');
+              editPopup.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--bg-surface);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 1.5em;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                z-index: 100000;
+                min-width: 300px;
+                max-width: 90vw;
+              `;
+              editPopup.innerHTML = `
+                <h4 style="margin: 0 0 1em 0; text-align: center;">修改通话内容</h4>
+                <textarea id="edit-call-content" style="width: 100%; min-height: 80px; padding: 0.5em; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); resize: vertical; font-family: inherit;">${originalContent}</textarea>
+                <div style="display: flex; gap: 0.5em; margin-top: 1em;">
+                  <button class="send-button" id="confirm-edit" style="flex: 1;">确认</button>
+                  <button class="send-button" id="cancel-edit" style="flex: 1; background: #666;">取消</button>
+                </div>
+              `;
+              document.body.appendChild(editPopup);
+
+              const textarea = editPopup.querySelector('#edit-call-content');
+              textarea.focus();
+              textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+              // 确认按钮
+              editPopup.querySelector('#confirm-edit').onclick = async () => {
+                const newContent = textarea.value.trim();
+                if (newContent && newContent !== originalContent) {
+                  try {
+                    const currentId = getCurrentMessageId();
+                    const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                    if (latestText) {
+                      const chatData = parseChatData(latestText);
+                      const currentChat = chatData.find(c => c.title === chatTitle);
+
+                      if (currentChat) {
+                        const messageType = callType === 'video' ? 'videocall' : 'voicecall';
+                        let callMsgIndex = 0;
+
+                        // 找到对应的通话消息并更新
+                        for (let i = 0; i < currentChat.log.length; i++) {
+                          if (currentChat.log[i].contentType === messageType) {
+                            if (callMsgIndex === messageIndex) {
+                              currentChat.log[i].content = newContent;
+                              break;
+                            }
+                            callMsgIndex++;
+                          }
+                        }
+
+                        // 更新楼层内容（保留其他标签如 <chat>）
+                        const updatedHistory = updateChatDataInHistory(latestText, chatData);
+                        await setChatMessages([{ message_id: currentId, message: updatedHistory }], {
+                          refresh: 'none',
+                        });
+                        rawData = updatedHistory;
+
+                        // 更新界面
+                        const senderName = colonIndex > 0 ? messageText.substring(0, colonIndex) : '未知';
+                        messageItem.textContent = `${senderName}：${newContent}`;
+
+                        console.log('[通话-编辑] 消息已更新');
+                      }
+                    }
+                  } catch (error) {
+                    console.error('[通话-编辑] 编辑消息时出错:', error);
+                  }
+                }
+                editPopup.remove();
+                actions.remove();
+              };
+
+              // 取消按钮
+              editPopup.querySelector('#cancel-edit').onclick = () => {
+                editPopup.remove();
+                actions.remove();
+              };
+            };
+
+            // 删除按钮
+            actions.querySelector('.delete-btn').onclick = async e => {
+              e.stopPropagation();
+              const messageIndex = parseInt(messageItem.dataset.messageIndex);
+
+              // 创建自定义删除确认弹窗
+              const deletePopup = document.createElement('div');
+              deletePopup.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--bg-surface);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 1.5em;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                z-index: 100000;
+                min-width: 300px;
+                max-width: 90vw;
+              `;
+              deletePopup.innerHTML = `
+                <h4 style="margin: 0 0 1em 0; text-align: center;">确认删除</h4>
+                <p style="margin: 0 0 1.5em 0; text-align: center; color: var(--text-secondary);">确定要删除这条通话记录吗？</p>
+                <div style="display: flex; gap: 0.5em;">
+                  <button class="send-button" id="confirm-delete" style="flex: 1; background: #f44336;">删除</button>
+                  <button class="send-button" id="cancel-delete" style="flex: 1; background: #666;">取消</button>
+                </div>
+              `;
+              document.body.appendChild(deletePopup);
+
+              // 确认删除
+              deletePopup.querySelector('#confirm-delete').onclick = async () => {
+                try {
+                  const currentId = getCurrentMessageId();
+                  const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                  if (latestText) {
+                    const chatData = parseChatData(latestText);
+                    const currentChat = chatData.find(c => c.title === chatTitle);
+
+                    if (currentChat) {
+                      const messageType = callType === 'video' ? 'videocall' : 'voicecall';
+                      let callMsgIndex = 0;
+                      let targetLogIndex = -1;
+
+                      // 找到对应的通话消息
+                      for (let i = 0; i < currentChat.log.length; i++) {
+                        if (currentChat.log[i].contentType === messageType) {
+                          if (callMsgIndex === messageIndex) {
+                            targetLogIndex = i;
+                            break;
+                          }
+                          callMsgIndex++;
+                        }
+                      }
+
+                      if (targetLogIndex >= 0) {
+                        // 删除消息
+                        currentChat.log.splice(targetLogIndex, 1);
+
+                        // 更新楼层内容（保留其他标签如 <chat>）
+                        const updatedHistory = updateChatDataInHistory(latestText, chatData);
+                        await setChatMessages([{ message_id: currentId, message: updatedHistory }], {
+                          refresh: 'none',
+                        });
+                        rawData = updatedHistory;
+
+                        // 更新界面
+                        messageItem.remove();
+
+                        // 重新索引剩余消息
+                        historyContainer.querySelectorAll('.call-message-item').forEach((item, idx) => {
+                          item.dataset.messageIndex = idx;
+                        });
+
+                        console.log('[通话-删除] 消息已删除');
+                      }
+                    }
+                  }
+                } catch (error) {
+                  console.error('[通话-删除] 删除消息时出错:', error);
+                }
+                deletePopup.remove();
+                actions.remove();
+              };
+
+              // 取消删除
+              deletePopup.querySelector('#cancel-delete').onclick = () => {
+                deletePopup.remove();
+                actions.remove();
+              };
+            };
+
+            // 点击其他地方隐藏菜单
+            setTimeout(() => {
+              const hideActions = e => {
+                if (!actions.contains(e.target)) {
+                  actions.remove();
+                  document.removeEventListener('click', hideActions);
+                  document.removeEventListener('touchstart', hideActions);
+                }
+              };
+              document.addEventListener('click', hideActions);
+              document.addEventListener('touchstart', hideActions);
+            }, 100);
+          }
+
+          // 使用通用长按处理器
+          createLongPressHandler(historyContainer, '.call-message-item', handleCallMessageLongPress);
+        }
+
+        // 接听或拒绝通话申请弹窗
+        function showCallResponsePopup(card, senderName, callType) {
+          const popupOverlay = card.querySelector('.popup-overlay');
+          const chatType = card.dataset.chatType;
+          const chatTitle = unescape(card.dataset.chatTitle);
+
+          const callTypeText = callType === 'video' ? '视频通话' : '语音电话';
+          const content = `
+            <h4 style="text-align: center; font-weight: bold; margin-bottom: 1em;">${callTypeText}申请</h4>
+            <p style="text-align: center; margin-bottom: 1.5em; color: var(--text-secondary);">${senderName} 申请与您进行${callTypeText}</p>
+            <div class="popup-buttons">
+                <button class="send-button" id="call-accept" style="background: #4CAF50;">接听</button>
+                <button class="send-button" id="call-reject" style="background: #f44336;">拒绝</button>
+            </div>`;
+
+          const popupContent = popupOverlay.querySelector('.popup-content');
+          popupContent.className = 'popup-content red-packet-popup';
+
+          // 重置overlay样式，确保居中显示
+          PopupManager.resetOverlayStyle(popupOverlay);
+
+          PopupManager.show(popupOverlay, content);
+
+          popupContent.onclick = e => e.stopPropagation();
+
+          // 接听
+          popupContent.querySelector('#call-accept').onclick = async e => {
+            e.stopPropagation();
+            PopupManager.hide(popupOverlay);
+
+            try {
+              const currentId = getCurrentMessageId();
+              const latestText = getChatMessages(currentId)[0]?.message || '';
+
+              if (latestText) {
+                const systemMessage = `system: {{user}}通过了你的通话申请`;
+                const updatedHistory = addMessageToChatBlock(latestText, chatTitle, chatType, systemMessage);
+
+                if (updatedHistory !== latestText) {
+                  await setChatMessages([{ message_id: currentId, message: updatedHistory }], { refresh: 'none' });
+                  rawData = updatedHistory;
+
+                  // 立即更新气泡状态
+                  updateCallBubbleState(chatTitle, callType, 'accepted');
+                }
+              }
+            } catch (error) {
+              console.error('[通话-接听] 写入楼层时出错:', error);
+            }
+          };
+
+          // 拒绝
+          popupContent.querySelector('#call-reject').onclick = async e => {
+            e.stopPropagation();
+            PopupManager.hide(popupOverlay);
+
+            try {
+              const currentId = getCurrentMessageId();
+              const latestText = getChatMessages(currentId)[0]?.message || '';
+
+              if (latestText) {
+                const systemMessage = `system: {{user}}拒绝了你的通话申请`;
+                const updatedHistory = addMessageToChatBlock(latestText, chatTitle, chatType, systemMessage);
+
+                if (updatedHistory !== latestText) {
+                  await setChatMessages([{ message_id: currentId, message: updatedHistory }], { refresh: 'none' });
+                  rawData = updatedHistory;
+
+                  // 立即更新气泡状态
+                  updateCallBubbleState(chatTitle, callType, 'rejected');
+                }
+              }
+            } catch (error) {
+              console.error('[通话-拒绝] 写入楼层时出错:', error);
+            }
+          };
+        }
+
+        async function showStickerPopup(card) {
+          const popupOverlay = card.querySelector('.popup-overlay');
+          const chatType = card.dataset.chatType;
+          const chatTitle = unescape(card.dataset.chatTitle);
+
+          // 从世界书获取表情包条目
+          try {
+            // 尝试获取角色卡世界书和全局世界书
+            let allEntries = [];
+
+            // 1. 获取全局世界书列表
+            try {
+              const globalWorldbookNames = getGlobalWorldbookNames();
+              console.log('[表情包] 全局世界书列表:', globalWorldbookNames);
+
+              // 遍历每个全局世界书，获取其条目
+              for (const worldbookName of globalWorldbookNames) {
+                try {
+                  const entries = await getWorldbook(worldbookName);
+                  console.log(`[表情包] 获取到世界书 "${worldbookName}" 的条目:`, entries.length);
+                  if (entries && Array.isArray(entries)) {
+                    allEntries = allEntries.concat(entries);
+                  }
+                } catch (e) {
+                  console.log(`[表情包] 获取世界书 "${worldbookName}" 失败:`, e);
+                }
+              }
+            } catch (e) {
+              console.log('[表情包] 获取全局世界书列表失败:', e);
+            }
+
+            // 2. 获取角色卡绑定的世界书
+            try {
+              const charWorldbooks = getCharWorldbookNames('current');
+              console.log('[表情包] 角色卡世界书:', charWorldbooks);
+
+              // 获取主要世界书
+              if (charWorldbooks.primary) {
+                try {
+                  const entries = await getWorldbook(charWorldbooks.primary);
+                  console.log(`[表情包] 获取到主要世界书 "${charWorldbooks.primary}" 的条目:`, entries.length);
+                  if (entries && Array.isArray(entries)) {
+                    allEntries = allEntries.concat(entries);
+                  }
+                } catch (e) {
+                  console.log(`[表情包] 获取主要世界书 "${charWorldbooks.primary}" 失败:`, e);
+                }
+              }
+
+              // 获取附加世界书
+              if (charWorldbooks.additional && Array.isArray(charWorldbooks.additional)) {
+                for (const worldbookName of charWorldbooks.additional) {
+                  try {
+                    const entries = await getWorldbook(worldbookName);
+                    console.log(`[表情包] 获取到附加世界书 "${worldbookName}" 的条目:`, entries.length);
+                    if (entries && Array.isArray(entries)) {
+                      allEntries = allEntries.concat(entries);
+                    }
+                  } catch (e) {
+                    console.log(`[表情包] 获取附加世界书 "${worldbookName}" 失败:`, e);
+                  }
+                }
+              }
+            } catch (e) {
+              console.log('[表情包] 获取角色卡世界书失败:', e);
+            }
+
+            console.log('[表情包] 合并后的所有条目数量:', allEntries.length);
+
+            // 筛选出标记为"sticker"或"表情包"的条目
+            const stickerEntries = allEntries.filter(entry => {
+              // 检查条目的标签或关键词是否包含"sticker"或"表情包"
+              const name = (entry.name || '').toLowerCase();
+              const keys = entry.strategy?.keys
+                ? entry.strategy.keys
+                    .map(k => String(k))
+                    .join(',')
+                    .toLowerCase()
+                : '';
+              const secondaryKeys = entry.strategy?.keys_secondary?.keys
+                ? entry.strategy.keys_secondary.keys
+                    .map(k => String(k))
+                    .join(',')
+                    .toLowerCase()
+                : '';
+
+              return (
+                name.includes('sticker') ||
+                name.includes('表情包') ||
+                keys.includes('sticker') ||
+                keys.includes('表情包') ||
+                secondaryKeys.includes('sticker') ||
+                secondaryKeys.includes('表情包')
+              );
+            });
+
+            console.log('[表情包] 筛选出的表情包条目:', stickerEntries);
+
+            // 解析表情包内容，统一格式：描述: 图床代码
+            // 自动识别图床类型：包含 / 的是 postimg（两层级），否则是 catbox（单层级）
+            const parsedStickers = [];
+            stickerEntries.forEach(entry => {
+              const content = entry.content || '';
+
+              // 按行分割内容
+              const lines = content.split('\n').filter(line => line.trim());
+              lines.forEach(line => {
+                const colonIndex = line.indexOf(':');
+                if (colonIndex > 0) {
+                  const description = line.substring(0, colonIndex).trim();
+                  let code = line.substring(colonIndex + 1).trim();
+
+                  if (description && code) {
+                    // 清理代码字符串（移除空格和引号）
+                    code = code.replace(/\s+/g, '').replace(/['"]/g, '');
+
+                    // 自动识别图床类型：包含 / 的是 postimg（两层级），否则是 catbox（单层级）
+                    const isPostImg = code.includes('/');
+                    const imageHost = isPostImg ? 'postimg' : 'catbox';
+                    const imageUrl = isPostImg ? `https://i.postimg.cc/${code}` : `https://files.catbox.moe/${code}`;
+
+                    const displayKeys = entry.strategy?.keys
+                      ? entry.strategy.keys.map(k => String(k)).join(', ')
+                      : entry.name;
+
+                    parsedStickers.push({
+                      description,
+                      imageUrl,
+                      imageHost,
+                      code,
+                      originalKey: displayKeys || '未命名',
+                    });
+                  }
+                }
+              });
+            });
+
+            console.log('[表情包] 解析后的表情包:', parsedStickers);
+
+            let stickerListHtml = '';
+            if (parsedStickers.length > 0) {
+              // 网格布局显示表情包，类似社交媒体
+              stickerListHtml = `
+                 <div class="sticker-grid">
+                   ${parsedStickers
+                     .map(
+                       (sticker, index) => `
+                      <div class="sticker-option" data-sticker-index="${index}" title="${sticker.description}">
+                        <img src="${sticker.imageUrl}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
+                        <div style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; background: var(--bg-surface); color: var(--text-secondary);">
+                          <i class="fa-regular fa-image" style="font-size: 2em;"></i>
+                        </div>
+                      </div>
+                    `,
+                     )
+                     .join('')}
+                 </div>
+               `;
+            } else {
+              stickerListHtml = `
+                <div style="text-align: center; padding: 2em;">
+                  <p style="color: var(--text-secondary); margin-bottom: 1em;">世界书中没有找到表情包</p>
+                  <p style="color: var(--text-secondary); font-size: 0.85em;">请在世界书中添加表情包条目<br/>格式：描述: 图床代码</p>
+                </div>
+              `;
+            }
+
+            const content = `${stickerListHtml}`;
+
+            const popupContent = popupOverlay.querySelector('.popup-content');
+            popupContent.className = 'popup-content sticker-popup';
+            // 调整弹框样式，使其显示在图标上方
+            popupContent.style.padding = '0.8em';
+            popupContent.style.maxHeight = '300px';
+
+            // 调整 overlay 位置，使其不会遮挡整个卡片
+            popupOverlay.style.alignItems = 'flex-end';
+            popupOverlay.style.paddingBottom = '70px'; // 留出输入框和图标栏的空间
+
+            PopupManager.show(popupOverlay, content, 'sticker');
+
+            popupContent.onclick = e => e.stopPropagation();
+
+            // 为每个表情包选项添加悬停效果和点击事件
+            popupContent.querySelectorAll('.sticker-option').forEach(option => {
+              option.onmouseenter = () => {
+                option.style.transform = 'scale(1.1)';
+                option.style.zIndex = '10';
+              };
+              option.onmouseleave = () => {
+                option.style.transform = 'scale(1)';
+                option.style.zIndex = '1';
+              };
+              option.onclick = () => {
+                const index = parseInt(option.dataset.stickerIndex);
+                const selectedSticker = parsedStickers[index];
+                // 立即关闭弹窗
+                PopupManager.hide(popupOverlay);
+                // 发送描述文字给AI，但在界面显示图片URL（不等待，立即返回）
+                sendStickerMessage(selectedSticker.description, selectedSticker.imageUrl, chatTitle, chatType);
+              };
+            });
+
+            // 点击输入框时关闭表情包弹框
+            const chatInput = card.querySelector('.chat-input');
+            if (chatInput) {
+              const closeOnInputFocus = () => {
+                if (popupOverlay.classList.contains('show')) {
+                  PopupManager.hide(popupOverlay);
+                }
+              };
+              chatInput.addEventListener('focus', closeOnInputFocus);
+              // 清理事件监听器
+              popupOverlay.addEventListener('transitionend', function cleanup() {
+                if (!popupOverlay.classList.contains('show')) {
+                  chatInput.removeEventListener('focus', closeOnInputFocus);
+                  popupOverlay.removeEventListener('transitionend', cleanup);
+                }
+              });
+            }
+
+            // 发送表情包消息的辅助函数
+            // textForAI: 发送给AI的描述文字
+            // displayContent: 在界面显示的内容（图片URL或文字）
+            async function sendStickerMessage(textForAI, displayContent, chatTitle, chatType) {
+              const chatContent = document.querySelector(`.chat-content[data-title="${chatTitle}"]`);
+              if (chatContent) {
+                const fragment = document.createDocumentFragment();
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = 'message-wrapper user';
+                const senderNameHtml = chatContent.classList.contains('private-chat')
+                  ? ''
+                  : `<div class="message-username">{{user}}</div>`;
+
+                // 判断displayContent是否为图片URL
+                let bubbleHtml = '';
+                if (displayContent.startsWith('http://') || displayContent.startsWith('https://')) {
+                  // 显示图片（不使用message-bubble包裹，避免背景色）
+                  bubbleHtml = `<img class="sticker-image" src="${displayContent}" alt="${textForAI}" style="max-width: 150px; max-height: 150px; display: block;" onerror="this.outerHTML='<div class=\\'sticker-placeholder\\'><i class=\\'fa-regular fa-face-laugh\\' style=\\'font-size: 2em; margin: 0.2em;\\'></i><div style=\\'font-size: 0.8em; color: var(--text-secondary);\\'>${textForAI}</div></div>';" />`;
+                } else {
+                  // 显示文字和图标（占位符也不需要气泡背景）
+                  bubbleHtml = `<div class="sticker-placeholder"><i class="fa-regular fa-face-laugh" style="font-size: 2em; margin: 0.2em;"></i><div style="font-size: 0.8em; color: var(--text-secondary);">${displayContent}</div></div>`;
+                }
+
+                messageWrapper.innerHTML = `<div class="message-bubble-container">${senderNameHtml}${bubbleHtml}</div>`;
+                fragment.appendChild(messageWrapper);
+                chatContent.appendChild(fragment);
+                chatContent.scrollTop = chatContent.scrollHeight;
+
+                setTimeout(async () => {
+                  try {
+                    console.log('[表情包] 开始写入表情包消息到楼层');
+                    console.log('[表情包] 发送给AI的文字:', textForAI);
+                    console.log('[表情包] 界面显示内容:', displayContent);
+
+                    const currentId = getCurrentMessageId();
+                    const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                    if (latestText) {
+                      // 只发送描述文字给AI（新格式：{{user}} | type: content）
+                      const stickerMessage = `{{user}} | sticker: ${textForAI}`;
+                      console.log('[表情包] 准备写入的消息:', stickerMessage);
+
+                      const updatedHistory = addMessageToChatBlock(latestText, chatTitle, chatType, stickerMessage);
+
+                      if (updatedHistory !== latestText) {
+                        await setChatMessages([{ message_id: currentId, message: updatedHistory }], {
+                          refresh: 'none',
+                        });
+                        console.log('[表情包] 表情包消息已写入楼层');
+                      }
+                    }
+                  } catch (error) {
+                    console.error('[表情包] 写入楼层时出错:', error);
+                  }
+                }, 0);
+              }
+            }
+          } catch (error) {
+            console.error('[表情包] 获取世界书失败:', error);
+
+            // 降级模式：显示添加表情包提示
+            const content = `
+               <div style="text-align: center; padding: 2em;">
+                 <p style="color: var(--accent-red); margin-bottom: 1em;">⚠️ 无法加载世界书</p>
+                 <p style="color: var(--text-secondary); margin-bottom: 1.5em; font-size: 0.9em;">错误：${error.message}</p>
+                 <button class="send-button" id="error-close" style="background: #666;">关闭</button>
+               </div>
+             `;
+
+            const popupContent = popupOverlay.querySelector('.popup-content');
+            popupContent.className = 'popup-content sticker-popup';
+            popupContent.style.maxWidth = '360px';
+            popupContent.style.padding = '0.8em';
+            PopupManager.show(popupOverlay, content);
+
+            popupContent.onclick = e => e.stopPropagation();
+
+            popupContent.querySelector('#error-close').onclick = e => {
+              e.stopPropagation();
+              PopupManager.hide(popupOverlay);
+            };
+          }
+        }
+
+        function showRedPacketPopup(card) {
+          const popupOverlay = card.querySelector('.popup-overlay');
+          const chatType = card.dataset.chatType;
+          const chatTitle = unescape(card.dataset.chatTitle);
+
+          const content = `<h4 style="text-align: center; font-weight: bold; margin-bottom: 1em;">发红包</h4>
+           <input type="text" class="chat-input popup-input" id="popup-input-main" placeholder="金额" autocomplete="off" spellcheck="false">
+           <input type="text" class="chat-input popup-input" id="popup-input-extra" placeholder="备注 (可选)" autocomplete="off" spellcheck="false">
+           <div class="popup-buttons">
+             <button class="send-button" id="popup-submit">确认</button>
+             <button class="send-button" id="popup-cancel" style="background: #666;">取消</button>
+           </div>`;
+
+          const popupContent = popupOverlay.querySelector('.popup-content');
+          popupContent.className = 'popup-content red-packet-popup';
+
+          // 重置overlay样式，确保居中显示
+          PopupManager.resetOverlayStyle(popupOverlay);
+
+          PopupManager.show(popupOverlay, content);
+
+          // 阻止弹窗内容的点击事件冒泡
+          popupContent.onclick = e => {
+            e.stopPropagation();
+          };
+
+          popupContent.querySelector('#popup-submit').onclick = async e => {
+            e.stopPropagation();
+            const mainInput = popupContent.querySelector('#popup-input-main').value.trim();
+            const extraInput = popupContent.querySelector('#popup-input-extra')?.value.trim();
+            if (!mainInput) return;
+
+            // 立即关闭弹窗，提高响应速度
+            PopupManager.hide(popupOverlay);
+
+            // 在界面中显示红包气泡
+            const [amount, memo] = [mainInput, extraInput || '恭喜发财'];
+            const chatContent = document.querySelector(`.chat-content[data-title="${chatTitle}"]`);
+            if (chatContent) {
+              // 使用DocumentFragment优化DOM操作
+              const fragment = document.createDocumentFragment();
+              const messageWrapper = document.createElement('div');
+              messageWrapper.className = 'message-wrapper user';
+              const senderNameHtml = chatContent.classList.contains('private-chat')
+                ? ''
+                : `<div class="message-username">{{user}}</div>`;
+              const bubbleHtml = `<div class="message-bubble red-packet-bubble" data-sender-name="${escape('{{user}}')}" data-is-claimed="false"><div class="red-packet-text"><div class="amount">¥${amount}</div><div class="memo">${memo}</div></div></div>`;
+              messageWrapper.innerHTML = `<div class="message-bubble-container">${senderNameHtml}${bubbleHtml}</div>`;
+              fragment.appendChild(messageWrapper);
+              chatContent.appendChild(fragment);
+              chatContent.scrollTop = chatContent.scrollHeight;
+
+              // 异步写入楼层，不阻塞UI
+              setTimeout(async () => {
+                try {
+                  console.log('[红包发送] 开始写入红包消息到楼层');
+
+                  const currentId = getCurrentMessageId();
+                  const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                  if (latestText) {
+                    const redPacketMessage = `{{user}} | redenvelope: ${amount}>${memo}`;
+                    console.log('[红包发送] 准备写入的消息:', redPacketMessage);
+
+                    const updatedHistory = addMessageToChatBlock(latestText, chatTitle, chatType, redPacketMessage);
+
+                    if (updatedHistory !== latestText) {
+                      await setChatMessages([{ message_id: currentId, message: updatedHistory }], { refresh: 'none' });
+                      console.log('[红包发送] 红包消息已写入楼层');
+                    } else {
+                      console.log('[红包发送] 楼层内容未发生变化，写入可能失败');
+                    }
+                  }
+                } catch (error) {
+                  console.error('[红包发送] 写入楼层时出错:', error);
+                }
+              }, 0);
+            }
+          };
+
+          popupContent.querySelector('#popup-cancel').onclick = e => {
+            e.stopPropagation();
+            PopupManager.hide(popupOverlay);
+          };
+        }
+
+        async function handleSendMessage(title, chatType, buttonElement) {
+          console.log('[发送按钮] 处理发送消息，标题:', title);
+
+          buttonElement.classList.add('sending');
+          buttonElement.disabled = true;
+
+          try {
+            // 清理状态
+            activeModes[title] = null;
+            updateInputPlaceholder(title, 'text');
+            const card = buttonElement.closest('.message-card');
+            if (card) {
+              card.querySelectorAll('.action-icon.active').forEach(icon => icon.classList.remove('active'));
+            }
+
+            // 直接触发发送按钮
+            console.log('[发送按钮] 触发send_but');
+            const sendButton = parent.document.querySelector('#send_but');
+            if (sendButton) {
+              const sendTextArea = parent.document.querySelector('#send_textarea');
+              if (sendTextArea) sendTextArea.value = '';
+              sendButton.click();
+            }
+          } catch (error) {
+            console.error('[发送按钮] 处理失败:', error);
+          } finally {
+            setTimeout(() => {
+              buttonElement.classList.remove('sending');
+              buttonElement.disabled = false;
+            }, 500);
+          }
+        }
+
+        function renderUI() {
+          if (!rawData.trim()) {
+            container.innerHTML = `<div class="message-card"><div class="message-wrapper system"><div class="system-message">没有聊天数据</div></div></div>`;
+            return;
+          }
+          try {
+            const chatData = parseChatData(rawData);
+            if (chatData.length === 0) {
+              container.innerHTML = `<div class="message-card"><div class="message-wrapper system"><div class="system-message">数据格式无法解析</div></div></div>`;
+              return;
+            }
+            let finalHtml = '';
+            chatData.forEach(chat => {
+              activeModes[chat.title] = null;
+
+              // 预处理：标记通话申请的状态（接通/拒绝）
+              const callRequestStatus = {}; // msgIndex -> 'accepted' | 'rejected'
+              chat.log.forEach((msg, msgIndex) => {
+                if (msg.senderType === 's') {
+                  const content = msg.content;
+                  const isCallAccepted =
+                    (content.includes('通过') || content.includes('接受') || content.includes('同意')) &&
+                    content.includes('通话') &&
+                    (content.includes('申请') || content.includes('请求'));
+                  const isCallRejected =
+                    content.includes('拒绝') &&
+                    content.includes('通话') &&
+                    (content.includes('申请') || content.includes('请求'));
+
+                  if (isCallAccepted || isCallRejected) {
+                    // 向前查找最近的通话申请
+                    for (let i = msgIndex - 1; i >= 0; i--) {
+                      const prevMsg = chat.log[i];
+                      if (prevMsg.senderType === 's') {
+                        const prevContent = prevMsg.content;
+                        const hasCallRequest =
+                          prevContent.includes('申请') &&
+                          (prevContent.includes('视频') || prevContent.includes('语音'));
+                        if (hasCallRequest) {
+                          callRequestStatus[i] = isCallAccepted ? 'accepted' : 'rejected';
+                          break;
+                        }
+                      }
+                    }
+                  }
+                }
+              });
+
+              let messagesHtml = '';
+              chat.log.forEach((msg, msgIndex) => {
+                // 不再显示时间戳
+                if (msg.senderType === 's') {
+                  // 检测通话相关系统消息（容错率更高）
+                  const content = msg.content;
+
+                  // 检测通话申请
+                  const hasCallRequest =
+                    content.includes('申请') && (content.includes('视频') || content.includes('语音'));
+
+                  // 确定谁发起了通话申请
+                  let callInitiator = null; // 发起人
+                  if (hasCallRequest) {
+                    // 从消息中提取发起人名称
+                    const initiatorMatch = content.match(/^([^申请]+?)申请/);
+                    if (initiatorMatch) {
+                      callInitiator = initiatorMatch[1].trim();
+                    }
+                  }
+
+                  // 根据 send/receive 判断气泡状态
+                  let isUserCallRequest = false; // 用户发起，显示等待
+                  let isOtherCallRequest = false; // 对方发起，显示申请
+
+                  if (hasCallRequest && callInitiator && chat.receive && chat.send) {
+                    if (chat.receive === '{{user}}') {
+                      // receive="{{user}}"：send方申请→申请状态，receive方申请→等待状态
+                      if (callInitiator === chat.send || callInitiator.includes(chat.send)) {
+                        isOtherCallRequest = true; // send方申请，显示申请气泡
+                      } else if (callInitiator === '{{user}}' || callInitiator.includes('{{user}}')) {
+                        isUserCallRequest = true; // receive方({{user}})申请，显示等待气泡
+                      }
+                    } else {
+                      // receive≠"{{user}}"：send方申请→等待状态，receive方申请→申请状态
+                      if (callInitiator === chat.send || callInitiator.includes(chat.send)) {
+                        isUserCallRequest = true; // send方申请，显示等待气泡
+                      } else if (callInitiator === chat.receive || callInitiator.includes(chat.receive)) {
+                        isOtherCallRequest = true; // receive方申请，显示申请气泡
+                      }
+                    }
+                  }
+
+                  // 3. 检测通话接通或拒绝响应消息
+                  const isCallAccepted =
+                    (content.includes('通过') || content.includes('接受') || content.includes('同意')) &&
+                    content.includes('通话') &&
+                    (content.includes('申请') || content.includes('请求'));
+                  const isCallRejected =
+                    content.includes('拒绝') &&
+                    content.includes('通话') &&
+                    (content.includes('申请') || content.includes('请求'));
+
+                  // 检查当前通话申请的状态
+                  const requestStatus = callRequestStatus[msgIndex];
+
+                  if (isUserCallRequest) {
+                    if (requestStatus === 'accepted') {
+                      // 用户的通话申请已接通 → 显示"通话中"气泡
+                      const isVideo = content.includes('视频');
+                      const callType = isVideo ? 'video' : 'voice';
+                      const callTypeText = isVideo ? '视频通话中' : '语音通话中';
+                      const icon = isVideo ? 'fa-video' : 'fa-phone';
+                      messagesHtml += `<div class="message-wrapper center" data-msg-index="${msgIndex}"><div class="message-bubble call-accepted-bubble" data-call-type="${callType}"><i class="fa-solid ${icon}"></i><span>${callTypeText}</span></div></div>`;
+                    } else if (requestStatus === 'rejected') {
+                      // 用户的通话申请被拒绝 → 显示"通话已拒绝"气泡
+                      const isVideo = content.includes('视频');
+                      const callTypeText = isVideo ? '视频通话已拒绝' : '语音通话已拒绝';
+                      const icon = isVideo ? 'fa-video' : 'fa-phone';
+                      messagesHtml += `<div class="message-wrapper center" data-msg-index="${msgIndex}"><div class="message-bubble call-rejected-bubble"><i class="fa-solid ${icon}"></i><span>${callTypeText}</span></div></div>`;
+                    } else {
+                      // 等待接通中（需要从content中提取callType）
+                      const isVideo = content.includes('视频');
+                      const callType = isVideo ? 'video' : 'voice';
+                      const icon = isVideo ? 'fa-video' : 'fa-phone';
+                      messagesHtml += `<div class="message-wrapper center" data-msg-index="${msgIndex}"><div class="message-bubble call-waiting-bubble" data-call-type="${callType}"><i class="fa-solid ${icon}"></i><span>等待接通中……</span></div></div>`;
+                    }
+                  } else if (isOtherCallRequest) {
+                    if (requestStatus === 'accepted') {
+                      // AI的通话申请已接通 → 显示"通话中"气泡
+                      const isVideo = content.includes('视频');
+                      const callType = isVideo ? 'video' : 'voice';
+                      const callTypeText = isVideo ? '视频通话中' : '语音通话中';
+                      const icon = isVideo ? 'fa-video' : 'fa-phone';
+                      messagesHtml += `<div class="message-wrapper center" data-msg-index="${msgIndex}"><div class="message-bubble call-accepted-bubble" data-call-type="${callType}"><i class="fa-solid ${icon}"></i><span>${callTypeText}</span></div></div>`;
+                    } else if (requestStatus === 'rejected') {
+                      // AI的通话申请被拒绝 → 显示"通话已拒绝"气泡
+                      const isVideo = content.includes('视频');
+                      const callTypeText = isVideo ? '视频通话已拒绝' : '语音通话已拒绝';
+                      const icon = isVideo ? 'fa-video' : 'fa-phone';
+                      messagesHtml += `<div class="message-wrapper center" data-msg-index="${msgIndex}"><div class="message-bubble call-rejected-bubble"><i class="fa-solid ${icon}"></i><span>${callTypeText}</span></div></div>`;
+                    } else {
+                      // AI的通话申请 → 显示可点击的通话申请气泡
+                      let senderName = '对方';
+                      const nameMatch = content.match(/^([^申请{]+?)(?:申请|想要|希望)/);
+                      if (nameMatch) {
+                        senderName = nameMatch[1].trim();
+                      }
+
+                      const isVideo = content.includes('视频');
+                      const callType = isVideo ? 'video' : 'voice';
+                      const callTypeText = isVideo ? '视频通话' : '语音电话';
+                      const icon = isVideo ? 'fa-video' : 'fa-phone';
+
+                      messagesHtml += `<div class="message-wrapper center" data-msg-index="${msgIndex}"><div class="message-bubble call-request-bubble" data-sender-name="${escape(senderName)}" data-call-type="${callType}"><i class="fa-solid ${icon}"></i><span>${senderName} 申请${callTypeText}</span></div></div>`;
+                    }
+                  } else if (isCallAccepted || isCallRejected) {
+                    // 通话接通/拒绝响应消息 → 不显示（已经在气泡状态中体现），但系统消息已写入楼层供AI识别
+                    // 跳过显示
+                  } else {
+                    // 检测挂断系统消息
+                    const isHangupMessage =
+                      content.includes('挂断') &&
+                      (content.includes('视频') || content.includes('语音') || content.includes('电话'));
+
+                    if (isHangupMessage) {
+                      // 挂断消息 → 不显示（已经在气泡状态中体现），但系统消息已写入楼层供AI识别
+                      // 跳过显示
+                    } else {
+                      // 普通系统消息
+                      messagesHtml += `<div class="message-wrapper system" data-msg-index="${msgIndex}"><div class="system-message">${content}</div></div>`;
+                    }
+                  }
+                } else {
+                  const senderNameHtml =
+                    chat.type === '群聊' ? `<div class="message-username">${msg.senderName}</div>` : '';
+
+                  // 判断气泡方向
+                  let messageType;
+
+                  if (chat.type === '群聊' && chat.send && chat.receive) {
+                    // 群聊新格式：检查 send 或 receive 是否包含 {{user}}
+                    const allMembers = [chat.send, ...(chat.receive ? chat.receive.split(',').map(m => m.trim()) : [])];
+                    const hasUser = allMembers.some(m => m === '{{user}}' || m.includes('{{user}}'));
+
+                    if (hasUser) {
+                      // 包含 {{user}}：用户在群里，{{user}} 的消息在右边
+                      messageType = msg.senderName === '{{user}}' ? 'user' : 'friend';
+                    } else {
+                      // 不包含 {{user}}：用户不在群里，send 方的消息在右边
+                      messageType = msg.senderName === chat.send ? 'user' : 'friend';
+                    }
+                  } else if (chat.receive && chat.type === '私聊') {
+                    // 私聊新格式：根据 receive 判断
+                    if (chat.receive === '{{user}}') {
+                      // receive = {{user}}：用户是接收方，send方在左，{{user}}在右
+                      messageType = msg.senderName === '{{user}}' ? 'user' : 'friend';
+                    } else {
+                      // receive ≠ {{user}}：用户不是接收方，send方在右，receive方在左
+                      messageType = msg.senderName === chat.send ? 'user' : 'friend';
+                    }
+                  } else {
+                    // 旧格式兼容
+                    const isUser = msg.senderName === '{{user}}' || msg.senderName === '我';
+                    messageType = isUser ? 'user' : msg.senderType === 'send' ? 'user' : 'friend';
+                  }
+
+                  let bubbleHtml = '',
+                    extraInfoHtml = '';
+
+                  switch (msg.contentType) {
+                    case 'voice':
+                      const duration = Math.max(1, Math.round(msg.content.length / 4));
+                      bubbleHtml = `<div class="message-bubble voice-bubble"><i class="fa-solid fa-waveform"></i> ${duration}s</div>`;
+                      extraInfoHtml = `<div class="message-extra-info">转文本: ${msg.content}</div>`;
+                      break;
+                    case 'media':
+                      // 检查是否是<img>标签格式
+                      if (msg.content.includes('<img>') && msg.content.includes('</img>')) {
+                        const imgMatch = msg.content.match(/<img>(.*?)<\/img>/);
+                        if (imgMatch) {
+                          const imageUrl = imgMatch[1];
+                          bubbleHtml = `<div class="message-bubble image-preview-bubble" style="background-image: url('${imageUrl}'); background-size: cover; background-position: center;" data-full-text="${escape(msg.content)}" onclick="showImagePreview('${imageUrl}', '图片')"></div>`;
+                        } else {
+                          const displayText =
+                            msg.content.length > 30 ? msg.content.substring(0, 30) + '...' : msg.content;
+                          bubbleHtml = `<div class="message-bubble image-preview-bubble" data-full-text="${escape(msg.content)}">${displayText}</div>`;
+                        }
+                      } else {
+                        const displayText =
+                          msg.content.length > 30 ? msg.content.substring(0, 30) + '...' : msg.content;
+                        bubbleHtml = `<div class="message-bubble image-preview-bubble" data-full-text="${escape(msg.content)}">${displayText}</div>`;
+                      }
+                      break;
+                    case 'quote': {
+                      const parts = msg.content.split('>').map(s => s.trim());
+                      const quoted = parts[0] || '';
+                      const reply = parts[1] || '';
+                      const quotedText = quoted.includes(':') ? quoted.split(':').slice(1).join(':').trim() : quoted;
+                      bubbleHtml = `<div class="message-bubble">${reply}</div>`;
+                      extraInfoHtml = `<div class="message-extra-info">${quotedText}</div>`;
+                      break;
+                    }
+                    case 'redenvelope':
+                      let isClaimed = false;
+                      // 构建可能的领取文本格式（支持多种格式）
+                      const possibleClaimTexts = [
+                        `{{user}}领取了${msg.senderName}的红包`,
+                        `{{user}}领取了 ${msg.senderName} 的红包`,
+                        `{{user}}领取了${msg.senderName}的红包。`,
+                        `{{user}}领取了 ${msg.senderName} 的红包。`,
+                      ];
+                      for (let i = msgIndex + 1; i < chat.log.length; i++) {
+                        const nextMsg = chat.log[i];
+                        if (
+                          nextMsg.senderType === 's' &&
+                          possibleClaimTexts.some(text => nextMsg.content.includes(text))
+                        ) {
+                          isClaimed = true;
+                          break;
+                        }
+                      }
+                      const [amount, memo] = msg.content.split('>').map(s => s.trim());
+                      const claimedClass = isClaimed ? ' claimed' : '';
+                      bubbleHtml = `<div class="message-bubble red-packet-bubble${claimedClass}" data-sender-name="${escape(msg.senderName)}" data-is-claimed="${isClaimed}"><div class="red-packet-text"><div class="amount">¥${amount}</div><div class="memo">${memo || '恭喜发财'}</div></div></div>`;
+                      break;
+                    case 'location':
+                      bubbleHtml = `<div class="message-bubble location-bubble"><div class="location-text">${msg.content}</div><div class="location-map"></div></div>`;
+                      break;
+                    case 'videocall':
+                    case 'voicecall':
+                      // 通话内容不显示为气泡，跳过渲染
+                      bubbleHtml = '';
+                      break;
+                    case 'sticker':
+                      // 添加占位符标记，稍后异步替换
+                      bubbleHtml = `<div class="sticker-placeholder" data-sticker-description="${escape(msg.content)}"><i class="fa-regular fa-face-laugh" style="font-size: 2em; margin: 0.2em;"></i><div style="font-size: 0.8em; color: var(--text-secondary);">${msg.content}</div></div>`;
+                      break;
+                    default:
+                      bubbleHtml = `<div class="message-bubble">${msg.content}</div>`;
+                      break;
+                  }
+                  // 只有当 bubbleHtml 不为空时才渲染消息
+                  if (bubbleHtml) {
+                    messagesHtml += `<div class="message-wrapper ${messageType}"><div class="message-bubble-container">${senderNameHtml}${bubbleHtml}${extraInfoHtml}</div></div>`;
+                  }
+                }
+              });
+              let headerHtml = '',
+                membersHtml = '';
+              if (chat.type === '群聊') {
+                headerHtml = `<div class="chat-session group-header"><h3 class="session-title">${chat.title}</h3><button class="toggle-members-btn" title="查看成员"><i class="fa-solid fa-user"></i></button></div>`;
+                if (chat.members.length > 0) {
+                  membersHtml = `<div class="session-members">成员: ${chat.members.join(', ')}</div>`;
+                }
+              } else {
+                headerHtml = `<div class="chat-session"><h3 class="session-title">${chat.title}</h3></div>`;
+              }
+              const chatContentClass = chat.type === '私聊' ? 'private-chat' : '';
+              const iconBarHtml = `<div class="action-icon-bar"><i class="fa-regular fa-smile action-icon" data-action="sticker" title="表情包"></i><i class="fa-regular fa-image action-icon mode-toggle-icon" data-action="media" title="图片描述"></i><i class="fa-solid fa-location-dot action-icon mode-toggle-icon" data-action="location" title="定位"></i><i class="fa-solid fa-microphone action-icon mode-toggle-icon" data-action="voice" title="语音"></i><i class="fa-solid fa-gift action-icon" data-action="redenvelope" title="红包"></i><i class="fa-solid fa-video action-icon" data-action="videocall" title="视频通话"></i><i class="fa-solid fa-phone action-icon" data-action="voicecall" title="语音电话"></i><i class="fa-solid fa-gear action-icon mode-toggle-icon" data-action="system" title="系统消息"></i></div>`;
+              finalHtml += `<div class="message-card" data-chat-type="${chat.type}" data-chat-title="${escape(chat.title)}">${headerHtml}${membersHtml}<div class="chat-content ${chatContentClass}" data-title="${chat.title}">${messagesHtml}</div>${iconBarHtml}<div class="chat-input-area"><input type="text" class="chat-input" data-title="${chat.title}" placeholder="回复..."><button class="send-button" data-title="${chat.title}">发送</button></div><div class="popup-overlay"><div class="popup-content"></div></div></div>`;
+            });
+            container.innerHTML = finalHtml;
+            document.querySelectorAll('.chat-content').forEach(el => (el.scrollTop = el.scrollHeight));
+
+            // 检查并添加通话气泡（通话中或已结束）
+            chatData.forEach(chat => {
+              const chatContentEl = container.querySelector(`.chat-content[data-title="${chat.title}"]`);
+              if (!chatContentEl) return;
+
+              // **先检查是否已经有通话相关的气泡**（通过系统消息渲染）
+              const existingCallBubbles = chatContentEl.querySelectorAll(
+                '.call-waiting-bubble, .call-request-bubble, .call-accepted-bubble, .call-rejected-bubble, .call-ended-bubble',
+              );
+              if (existingCallBubbles.length > 0) {
+                console.log(`[通话气泡] ${chat.title} 已有通话气泡，跳过重复创建`);
+                return; // 已有气泡，跳过
+              }
+
+              // 检查是否有voicecall或videocall消息
+              let hasVoiceCall = false;
+              let hasVideoCall = false;
+              let hasHangup = false;
+
+              chat.log.forEach(msg => {
+                if (msg.contentType === 'voicecall') hasVoiceCall = true;
+                if (msg.contentType === 'videocall') hasVideoCall = true;
+                if (
+                  msg.senderType === 's' &&
+                  msg.content.includes('挂断') &&
+                  (msg.content.includes('视频') || msg.content.includes('语音') || msg.content.includes('电话'))
+                ) {
+                  hasHangup = true;
+                }
+              });
+
+              // 如果有通话内容，显示对应状态的气泡
+              if (hasVoiceCall || hasVideoCall) {
+                const callType = hasVideoCall ? 'video' : 'voice';
+                const icon = CallUtils.getIcon(callType);
+                const callText = CallUtils.getText(callType);
+
+                const bubbleClass = hasHangup ? 'call-ended-bubble' : 'call-accepted-bubble';
+                const statusText = hasHangup ? '通话已结束' : '通话中';
+                const bubbleContent = `<i class="fa-solid ${icon}"></i><span>${callText}${statusText}</span>`;
+
+                const wrapper = createMessageBubble(bubbleClass, bubbleContent, { callType });
+                const bubble = wrapper.querySelector('.message-bubble');
+
+                // 绑定点击事件
+                bubble.onclick = () => {
+                  const card = chatContentEl.closest('.message-card');
+                  hasHangup ? showCallHistoryPopup(card, callType) : showCallContentPopup(card, callType);
+                };
+
+                chatContentEl.appendChild(wrapper);
+                chatContentEl.scrollTop = chatContentEl.scrollHeight;
+              }
+            });
+
+            // 异步替换所有的表情包占位符
+            replaceStickerPlaceholders();
+
+            bindEventListeners();
+          } catch (e) {
+            console.error('渲染UI时出错:', e);
+          }
+        }
+
+        // 异步替换所有的表情包占位符
+        async function replaceStickerPlaceholders() {
+          const placeholders = document.querySelectorAll('.sticker-placeholder');
+          if (placeholders.length === 0) return;
+
+          // 收集所有需要查找的描述（去重）
+          const descriptionsMap = new Map();
+          placeholders.forEach(placeholder => {
+            const description = unescape(placeholder.dataset.stickerDescription);
+            if (!descriptionsMap.has(description)) {
+              descriptionsMap.set(description, []);
+            }
+            descriptionsMap.get(description).push(placeholder);
+          });
+
+          // 异步查找每个描述对应的图片并替换
+          for (const [description, elements] of descriptionsMap) {
+            const imageUrl = await findStickerImageUrl(description);
+            if (imageUrl) {
+              elements.forEach(element => {
+                element.outerHTML = `<img class="sticker-image" src="${imageUrl}" alt="${description}" style="max-width: 150px; max-height: 150px; display: block;" onerror="this.outerHTML='<div class=\\'sticker-placeholder\\'><i class=\\'fa-regular fa-face-laugh\\' style=\\'font-size: 2em; margin: 0.2em;\\'></i><div style=\\'font-size: 0.8em; color: var(--text-secondary);\\'>${description}</div></div>';" />`;
+              });
+            }
+          }
+        }
+
+        function bindEventListeners() {
+          // 长按处理函数
+          const handleBubbleLongPress = targetElement => {
+            targetElement.dataset.longPressed = 'true';
+            targetElement.dataset.longPressedMenu = 'true';
+            showBubbleActions(targetElement);
+
+            setTimeout(() => delete targetElement.dataset.longPressed, 300);
+            setTimeout(() => delete targetElement.dataset.longPressedMenu, 500);
+          };
+
+          // 使用通用长按处理器（包括表情包图片）
+          createLongPressHandler(
+            container,
+            '.message-bubble, .system-message, .sticker-image, .sticker-placeholder',
+            element => {
+              if (!multiSelectMode) handleBubbleLongPress(element);
+            },
+          );
+
+          // 点击其他地方隐藏操作图标和图片选项
+          document.addEventListener('click', function (event) {
+            // 检查是否有元素刚刚完成长按，如果是则保护操作菜单
+            const longPressedMenuElement = document.querySelector('[data-long-pressed-menu="true"]');
+            if (longPressedMenuElement) {
+              console.log('[点击事件] 检测到长按菜单保护期，跳过隐藏操作菜单');
+              return;
+            }
+
+            if (
+              !event.target.closest('.bubble-actions') &&
+              !event.target.closest('.message-bubble') &&
+              !event.target.closest('.system-message')
+            ) {
+              hideBubbleActions();
+            }
+          });
+
+          container.addEventListener('click', async function (event) {
+            const target = event.target;
+            const card = target.closest('.message-card');
+            if (!card) return;
+            const chatType = card.dataset.chatType;
+            const chatTitle = unescape(card.dataset.chatTitle);
+
+            // 如果在多选模式下，处理选择逻辑
+            if (multiSelectMode) {
+              // 优先处理勾选框的直接点击
+              const checkboxClicked = target.closest('.checkbox-circle');
+              if (checkboxClicked) {
+                const messageWrapper = checkboxClicked.closest('.message-wrapper');
+                if (messageWrapper) {
+                  event.stopPropagation();
+                  toggleMessageSelection(messageWrapper, checkboxClicked);
+                  return;
+                }
+              }
+
+              // 处理消息行的点击（排除勾选框、操作按钮、弹窗）
+              const messageWrapper = target.closest('.message-wrapper');
+              if (
+                messageWrapper &&
+                !target.closest('.checkbox-circle') &&
+                !target.closest('.action-icon') &&
+                !target.closest('.popup-overlay')
+              ) {
+                const checkbox = messageWrapper.querySelector('.checkbox-circle');
+                if (checkbox) {
+                  event.stopPropagation();
+                  toggleMessageSelection(messageWrapper, checkbox);
+                  return;
+                }
+              }
+            }
+
+            const actionIcon = target.closest('.action-icon');
+            if (actionIcon && !actionIcon.classList.contains('disabled')) {
+              const action = actionIcon.dataset.action;
+
+              // 优先处理弹窗类操作
+              if (action === 'redenvelope') {
+                showRedPacketPopup(card);
+              } else if (action === 'videocall') {
+                // 检查是否已经在视频通话中
+                const chatContent = card.querySelector('.chat-content');
+                const inCallBubble = chatContent?.querySelector('.call-accepted-bubble[data-call-type="video"]');
+
+                if (inCallBubble) {
+                  // 已经在通话中，直接打开通话弹窗
+                  showCallContentPopup(card, 'video');
+                } else {
+                  // 没有通话，发起新的通话申请
+                  showCallRequestPopup(card, 'video');
+                }
+              } else if (action === 'voicecall') {
+                // 检查是否已经在语音通话中
+                const chatContent = card.querySelector('.chat-content');
+                const inCallBubble = chatContent?.querySelector('.call-accepted-bubble[data-call-type="voice"]');
+
+                if (inCallBubble) {
+                  // 已经在通话中，直接打开通话弹窗
+                  showCallContentPopup(card, 'voice');
+                } else {
+                  // 没有通话，发起新的通话申请
+                  showCallRequestPopup(card, 'voice');
+                }
+              } else if (action === 'sticker') {
+                showStickerPopup(card);
+              } else if (action === 'i') {
+                // 图片按钮简化处理：切换状态
+                toggleImageMode(actionIcon);
+              } else if (actionIcon.classList.contains('mode-toggle-icon')) {
+                // 其他模式切换按钮
+                const currentActive = activeModes[chatTitle];
+                card.querySelectorAll('.action-icon.active').forEach(icon => icon.classList.remove('active'));
+                if (currentActive === action) {
+                  activeModes[chatTitle] = null;
+                  updateInputPlaceholder(chatTitle, 'text');
+                } else {
+                  activeModes[chatTitle] = action;
+                  actionIcon.classList.add('active');
+                  updateInputPlaceholder(chatTitle, action);
+                }
+              }
+              return;
+            }
+
+            const popupOverlay = card.querySelector('.popup-overlay');
+
+            // 处理通话申请气泡点击
+            const callRequestBubble = target.closest('.call-request-bubble');
+            if (callRequestBubble) {
+              const senderName = unescape(callRequestBubble.dataset.senderName);
+              const callType = callRequestBubble.dataset.callType;
+              showCallResponsePopup(card, senderName, callType);
+              return;
+            }
+
+            // 处理通话接通气泡点击（输入通话内容）
+            const callAcceptedBubble = target.closest('.call-accepted-bubble');
+            if (callAcceptedBubble) {
+              const callType = callAcceptedBubble.dataset.callType;
+              showCallContentPopup(card, callType);
+              return;
+            }
+
+            // 处理通话已结束气泡点击（查看通话记录）
+            const callEndedBubble = target.closest('.call-ended-bubble');
+            if (callEndedBubble) {
+              const callType = callEndedBubble.dataset.callType;
+              showCallHistoryPopup(card, callType);
+              return;
+            }
+
+            const bubbleClicked = target.closest('.image-preview-bubble, .red-packet-bubble');
+            if (bubbleClicked) {
+              // 如果刚刚发生了长按，则不显示弹窗
+              if (bubbleClicked.dataset.longPressed === 'true') {
+                console.log('[气泡点击] 检测到长按标记，跳过弹窗显示');
+                return;
+              }
+
+              // 延迟一点检查，给长按事件时间设置标记
+              setTimeout(() => {
+                if (bubbleClicked.dataset.longPressed === 'true') {
+                  console.log('[气泡点击] 延迟检测到长按标记，取消弹窗');
+                  return;
+                }
+
+                // 如果没有长按标记，则显示弹窗
+                showBubblePopup(bubbleClicked, card);
+              }, 10);
+              return;
+            }
+
+            // 移除重复的弹窗处理代码，使用独立函数
+
+            function showBubblePopup(bubbleClicked, card) {
+              const popupOverlay = card.querySelector('.popup-overlay');
+              const popupContent = card.querySelector('.popup-content');
+              const chatTitle = unescape(card.dataset.chatTitle);
+
+              if (bubbleClicked.classList.contains('image-preview-bubble')) {
+                const fullText = unescape(bubbleClicked.dataset.fullText);
+                // 检查是否包含图片URL
+                let contentHtml = '';
+                if (fullText.includes('<img>') && fullText.includes('</img>')) {
+                  const imgMatch = fullText.match(/<img>(.*?)<\/img>/);
+                  if (imgMatch) {
+                    const imageUrl = imgMatch[1];
+                    contentHtml = `<img src="${imageUrl}" style="max-width: 100%; max-height: 100%; object-fit: contain;" />`;
+                  } else {
+                    contentHtml = `<p style="margin: 0;">${fullText}</p>`;
+                  }
+                } else {
+                  contentHtml = `<p style="margin: 0;">${fullText}</p>`;
+                }
+                popupContent.innerHTML = contentHtml;
+                popupContent.className = 'popup-content image-popup';
+                popupContent.style.cssText = '';
+                PopupManager.resetOverlayStyle(popupOverlay);
+                PopupManager.show(popupOverlay);
+              } else if (bubbleClicked.classList.contains('red-packet-bubble')) {
+                const senderName = unescape(bubbleClicked.dataset.senderName);
+                const isClaimed = bubbleClicked.dataset.isClaimed === 'true';
+                const buttonClass = isClaimed ? 'red-packet-open-btn claimed' : 'red-packet-open-btn';
+                const buttonDisabled = isClaimed ? 'disabled' : '';
+                popupContent.innerHTML = `<p>来自 ${senderName} 的红包</p><button class="${buttonClass}" data-sender-name="${escape(senderName)}" ${buttonDisabled ? 'disabled' : ''}>开</button>`;
+                popupContent.className = 'popup-content red-packet-claim-popup';
+
+                // 直接为按钮添加点击事件监听器
+                const openButton = popupContent.querySelector('.red-packet-open-btn');
+                if (openButton && !openButton.disabled) {
+                  openButton.addEventListener('click', async function (e) {
+                    e.stopPropagation();
+
+                    const senderName = unescape(this.dataset.senderName);
+
+                    // 根据红包发送者判断显示文本
+                    // 如果是自己的红包，显示"你领取了{{user}}的红包"
+                    // 如果是别人的红包，显示"你领取了[name]的红包"
+                    const systemText =
+                      senderName === '我' ? '{{user}}领取了{{user}}的红包' : `{{user}}领取了${senderName}的红包`;
+
+                    // 标记红包为已领取
+                    bubbleClicked.dataset.isClaimed = 'true';
+                    bubbleClicked.classList.add('claimed');
+
+                    // 立即关闭弹窗
+                    PopupManager.hide(popupOverlay);
+
+                    // 在界面显示系统消息
+                    const chatContent = document.querySelector(`.chat-content[data-title="${chatTitle}"]`);
+                    if (chatContent) {
+                      const fragment = document.createDocumentFragment();
+                      const systemMessageWrapper = document.createElement('div');
+                      systemMessageWrapper.className = 'message-wrapper system';
+
+                      const systemMessageDiv = document.createElement('div');
+                      systemMessageDiv.className = 'system-message';
+                      systemMessageDiv.textContent = systemText;
+
+                      systemMessageWrapper.appendChild(systemMessageDiv);
+                      fragment.appendChild(systemMessageWrapper);
+                      chatContent.appendChild(fragment);
+                      chatContent.scrollTop = chatContent.scrollHeight;
+
+                      // 异步写入楼层
+                      setTimeout(async () => {
+                        try {
+                          console.log('[红包领取] 开始写入系统消息到楼层:', systemText);
+
+                          const currentId = getCurrentMessageId();
+                          const latestText = getChatMessages(currentId)[0]?.message || '';
+                          const chatCard = chatContent.closest('.message-card');
+                          const chatType = chatCard.dataset.chatType;
+
+                          if (latestText) {
+                            const systemMessage = `system: ${systemText}`;
+                            const updatedHistory = addMessageToChatBlock(
+                              latestText,
+                              chatTitle,
+                              chatType,
+                              systemMessage,
+                            );
+
+                            if (updatedHistory !== latestText) {
+                              await setChatMessages([{ message_id: currentId, message: updatedHistory }], {
+                                refresh: 'none',
+                              });
+                              console.log('[红包领取] 系统消息已写入楼层');
+                            }
+                          }
+                        } catch (error) {
+                          console.error('[红包领取] 写入楼层时出错:', error);
+                        }
+                      }, 0);
+                    }
+                  });
+                }
+
+                PopupManager.show(popupOverlay);
+              }
+            }
+
+            const clickedOverlay = target.closest('.popup-overlay');
+            if (clickedOverlay) {
+              // 检查是否点击的是弹窗内容区域
+              const popupContent = target.closest('.popup-content');
+              if (!popupContent) {
+                // 只有点击弹窗外部才关闭
+                clickedOverlay.style.display = 'none';
+              }
+              return;
+            }
+
+            const sendButton = target.closest('.send-button');
+            if (sendButton) {
+              const buttonCard = sendButton.closest('.message-card');
+              const bChatType = buttonCard.dataset.chatType;
+              const bChatTitle = unescape(buttonCard.dataset.chatTitle);
+              await handleSendMessage(bChatTitle, bChatType, sendButton);
+              return;
+            }
+
+            const membersButton = target.closest('.toggle-members-btn');
+            if (membersButton) {
+              const membersList = card.querySelector('.session-members');
+              if (membersList) {
+                membersList.classList.toggle('visible');
+              }
+            }
+          });
+
+          container.addEventListener('keypress', async function (event) {
+            if (event.key !== 'Enter') return;
+            const input = event.target.closest('.chat-input');
+            if (input) {
+              event.preventDefault();
+              const card = input.closest('.message-card');
+              const chatTitle = unescape(card.dataset.chatTitle);
+              const chatType = card.dataset.chatType;
+              const messageText = input.value.trim();
+              if (messageText) {
+                const currentMode = activeModes[chatTitle] || 'text';
+
+                // 先在界面显示消息
+                let messageToWriteToFloor = ''; // 要写入楼层的消息内容
+
+                if (currentMode === 'system') {
+                  // 系统消息特殊处理
+                  addLocalMessage(chatTitle, messageText, 'system');
+
+                  // 系统消息写入楼层的格式：system: content（不需要{{user}}）
+                  messageToWriteToFloor = `system: ${messageText}`;
+
+                  // 清除系统消息模式
+                  activeModes[chatTitle] = null;
+                  updateInputPlaceholder(chatTitle, 'text');
+
+                  // 取消系统消息模式的视觉提示
+                  card.querySelectorAll('.action-icon.active').forEach(icon => {
+                    icon.classList.remove('active');
+                  });
+                } else if (currentMode === 'quote' && input.dataset.quotedText) {
+                  const quotedText = input.dataset.quotedText;
+                  const quotedSender = input.dataset.quotedSender || '用户';
+                  const fullMessage = `${quotedSender}: ${quotedText}>${messageText}`;
+                  addLocalMessage(chatTitle, fullMessage, currentMode);
+
+                  // 写入楼层时使用新格式：{{user}} | type: content
+                  messageToWriteToFloor = `{{user}} | quote: ${quotedText}>${messageText}`;
+
+                  // 清除引用数据
+                  delete input.dataset.quotedText;
+                  delete input.dataset.quotedSender;
+                  activeModes[chatTitle] = null;
+                  updateInputPlaceholder(chatTitle, 'text');
+
+                  // 取消引用模式的视觉提示
+                  card.querySelectorAll('.action-icon.active').forEach(icon => {
+                    icon.classList.remove('active');
+                  });
+                } else {
+                  addLocalMessage(chatTitle, messageText, currentMode);
+
+                  // 构建要写入楼层的消息（新格式：{{user}} | type: content）
+                  messageToWriteToFloor = `{{user}} | ${currentMode}: ${messageText}`;
+                }
+
+                input.value = '';
+
+                // 隐藏表情包推荐
+                const suggestionsEl = card.querySelector('.sticker-suggestions');
+                if (suggestionsEl) {
+                  suggestionsEl.classList.remove('show');
+                  suggestionsEl.innerHTML = '';
+                }
+
+                // 回车时立即写入楼层
+                console.log('[回车触发] 立即写入楼层，chatTitle:', chatTitle);
+                try {
+                  const currentId = getCurrentMessageId();
+                  const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                  if (latestText && messageToWriteToFloor) {
+                    console.log('[回车触发] 准备写入的消息:', messageToWriteToFloor);
+
+                    const updatedHistory = addMessageToChatBlock(
+                      latestText,
+                      chatTitle,
+                      chatType,
+                      messageToWriteToFloor,
+                    );
+
+                    if (updatedHistory !== latestText) {
+                      await setChatMessages([{ message_id: currentId, message: updatedHistory }], {
+                        refresh: 'none',
+                      });
+                      console.log('[回车触发] 消息已写入楼层');
+
+                      // 清理已写入的消息
+                      activeModes[chatTitle] = null;
+                      updateInputPlaceholder(chatTitle, 'text');
+                      card.querySelectorAll('.action-icon.active').forEach(icon => icon.classList.remove('active'));
+                    } else {
+                      console.log('[回车触发] 楼层内容未发生变化，写入可能失败');
+                    }
+                  }
+                } catch (error) {
+                  console.error('[回车触发] 写入楼层时出错:', error);
+                }
+              }
+            }
+          });
+
+          // 多选工具栏事件（事件委托：全局处理内联工具栏）
+          container.ownerDocument.addEventListener('click', function (e) {
+            const inlineDel = e.target.closest('[data-role="inline-delete"]');
+            if (inlineDel) {
+              deleteSelectedMessages();
+            }
+            const inlineCancel = e.target.closest('[data-role="inline-cancel"]');
+            if (inlineCancel) {
+              exitMultiSelectMode();
+            }
+
+            // 点击表情包建议项
+            const suggestionItem = e.target.closest('.sticker-suggestion-item');
+            if (suggestionItem) {
+              const card = suggestionItem.closest('.message-card');
+              const description = unescape(suggestionItem.dataset.description);
+              const imageUrl = suggestionItem.dataset.imageUrl;
+              const chatTitle = unescape(card.dataset.chatTitle);
+              const chatType = card.dataset.chatType;
+
+              // 隐藏建议列表
+              const suggestionsEl = card.querySelector('.sticker-suggestions');
+              if (suggestionsEl) {
+                suggestionsEl.classList.remove('show');
+                suggestionsEl.innerHTML = '';
+              }
+
+              // 清空输入框
+              const inputs = card.querySelectorAll('input[type="text"]');
+              for (const inp of inputs) {
+                if (!inp.closest('.popup-overlay')) {
+                  inp.value = '';
+                  break;
+                }
+              }
+
+              // 立即在界面中显示表情包
+              const chatContent = card.querySelector('.chat-content');
+              if (chatContent) {
+                const fragment = document.createDocumentFragment();
+                const messageWrapper = document.createElement('div');
+                messageWrapper.className = 'message-wrapper user';
+
+                const bubbleContainer = document.createElement('div');
+                bubbleContainer.className = 'message-bubble-container';
+
+                const img = document.createElement('img');
+                img.className = 'sticker-image';
+                img.src = imageUrl;
+                img.alt = description;
+                img.style.maxWidth = '120px';
+                img.style.maxHeight = '120px';
+                img.style.display = 'block';
+                img.style.objectFit = 'contain';
+
+                bubbleContainer.appendChild(img);
+                messageWrapper.appendChild(bubbleContainer);
+                fragment.appendChild(messageWrapper);
+                chatContent.appendChild(fragment);
+                chatContent.scrollTop = chatContent.scrollHeight;
+
+                // 异步写入楼层
+                setTimeout(async () => {
+                  try {
+                    const currentId = getCurrentMessageId();
+                    const latestText = getChatMessages(currentId)[0]?.message || '';
+
+                    if (latestText) {
+                      const stickerMessage = `{{user}} | sticker: ${description}`;
+                      const updatedHistory = addMessageToChatBlock(latestText, chatTitle, chatType, stickerMessage);
+
+                      if (updatedHistory !== latestText) {
+                        await setChatMessages([{ message_id: currentId, message: updatedHistory }], {
+                          refresh: 'none',
+                        });
+                        console.log('[表情包] 表情包已写入楼层');
+
+                        // 更新 rawData
+                        rawData = updatedHistory;
+                      }
+                    }
+                  } catch (error) {
+                    console.error('[表情包] 写入楼层时出错:', error);
+                  }
+                }, 0);
+              }
+            }
+
+            // 点击其他地方关闭建议
+            const clickedSuggestions = e.target.closest('.sticker-suggestions');
+            const clickedInput = e.target.closest('input[type="text"]');
+
+            if (!clickedSuggestions && !clickedInput) {
+              document.querySelectorAll('.sticker-suggestions.show').forEach(el => {
+                el.classList.remove('show');
+                el.innerHTML = '';
+              });
+            }
+          });
+
+          // 表情包推荐功能：为所有消息卡片添加sticker-suggestions容器
+          function initStickerSuggestions() {
+            const allCards = container.querySelectorAll('.message-card');
+            allCards.forEach(card => {
+              if (!card.querySelector('.sticker-suggestions')) {
+                const suggestionsEl = document.createElement('div');
+                suggestionsEl.className = 'sticker-suggestions';
+                card.appendChild(suggestionsEl);
+              }
+            });
+          }
+
+          // 监听输入框变化
+          let searchTimeout;
+          container.ownerDocument.addEventListener('input', async function (e) {
+            const input = e.target;
+            console.log('[表情包推荐] input事件触发, 目标:', input.tagName, input.type, input.className);
+
+            // 为所有输入框添加自动滚动功能
+            if (input.tagName === 'INPUT' && input.type === 'text') {
+              // 确保光标位置可见
+              const cursorPosition = input.selectionStart;
+              if (cursorPosition !== null) {
+                // 使用 scrollLeft 来跟随光标
+                const textBeforeCursor = input.value.substring(0, cursorPosition);
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                const style = window.getComputedStyle(input);
+                context.font = `${style.fontSize} ${style.fontFamily}`;
+                const textWidth = context.measureText(textBeforeCursor).width;
+                const inputWidth = input.offsetWidth;
+
+                // 如果光标位置超出可视区域，则滚动
+                if (textWidth > inputWidth - 20) {
+                  input.scrollLeft = textWidth - inputWidth + 40;
+                } else {
+                  input.scrollLeft = 0;
+                }
+              }
+            }
+
+            // 检查是否是消息输入框（不包括通话弹窗中的输入框）
+            if (input.tagName === 'INPUT' && input.type === 'text' && !input.closest('.popup-overlay')) {
+              console.log('[表情包推荐] 符合条件, 输入值:', input.value);
+              clearTimeout(searchTimeout);
+
+              const card = input.closest('.message-card');
+              if (!card) {
+                console.log('[表情包推荐] 未找到message-card');
+                return;
+              }
+
+              // 确保有suggestions容器
+              let suggestionsEl = card.querySelector('.sticker-suggestions');
+              if (!suggestionsEl) {
+                suggestionsEl = document.createElement('div');
+                suggestionsEl.className = 'sticker-suggestions';
+                card.appendChild(suggestionsEl);
+              }
+
+              const query = input.value.trim();
+
+              // 如果输入为空，隐藏建议
+              if (!query) {
+                suggestionsEl.classList.remove('show');
+                suggestionsEl.innerHTML = '';
+                return;
+              }
+
+              // 延迟300ms搜索，避免频繁查询
+              searchTimeout = setTimeout(async () => {
+                try {
+                  console.log('[表情包推荐] 开始搜索:', query);
+                  const results = await searchStickers(query);
+                  console.log('[表情包推荐] 搜索结果数量:', results.length);
+
+                  if (results.length === 0) {
+                    suggestionsEl.classList.remove('show');
+                    suggestionsEl.innerHTML = '';
+                    return;
+                  }
+
+                  let html = '';
+                  for (const item of results) {
+                    html += `
+                      <div class="sticker-suggestion-item" data-description="${escape(item.description)}" data-image-url="${item.imageUrl}">
+                        <img src="${item.imageUrl}" alt="${item.description}" loading="lazy" />
+                      </div>
+                    `;
+                  }
+
+                  suggestionsEl.innerHTML = html;
+                  suggestionsEl.classList.add('show');
+                } catch (error) {
+                  console.error('[表情包建议] 搜索失败:', error);
+                }
+              }, 300);
+            }
+          });
+
+          // 初始化表情包推荐
+          console.log('[表情包推荐] 初始化表情包推荐功能');
+          initStickerSuggestions();
+        }
+
+        // 搜索表情包（复用现有的表情包筛选逻辑）
+        async function searchStickers(query) {
+          if (!query || query.trim().length === 0) return [];
+
+          const results = [];
+          const queryLower = query.trim().toLowerCase();
+
+          try {
+            // 获取所有世界书条目（复用 showStickerPopup 的逻辑）
+            let allEntries = [];
+
+            // 获取全局世界书
+            const globalWorldbookNames = getGlobalWorldbookNames();
+            for (const worldbookName of globalWorldbookNames) {
+              try {
+                const entries = await getWorldbook(worldbookName);
+                if (entries && Array.isArray(entries)) {
+                  allEntries = allEntries.concat(entries);
+                }
+              } catch (e) {
+                console.error(`[表情包推荐] 获取世界书 "${worldbookName}" 失败:`, e);
+              }
+            }
+
+            // 筛选出表情包条目（复用 showStickerPopup 的筛选逻辑）
+            const stickerEntries = allEntries.filter(entry => {
+              const name = (entry.name || '').toLowerCase();
+              const keys = entry.strategy?.keys
+                ? entry.strategy.keys
+                    .map(k => String(k))
+                    .join(',')
+                    .toLowerCase()
+                : '';
+              const secondaryKeys = entry.strategy?.keys_secondary?.keys
+                ? entry.strategy.keys_secondary.keys
+                    .map(k => String(k))
+                    .join(',')
+                    .toLowerCase()
+                : '';
+
+              return (
+                name.includes('sticker') ||
+                name.includes('表情包') ||
+                keys.includes('sticker') ||
+                keys.includes('表情包') ||
+                secondaryKeys.includes('sticker') ||
+                secondaryKeys.includes('表情包')
+              );
+            });
+
+            // 解析表情包内容，查找匹配的描述
+            for (const entry of stickerEntries) {
+              const content = entry.content || '';
+              const lines = content.split('\n').filter(line => line.trim());
+
+              for (const line of lines) {
+                const colonIndex = line.indexOf(':');
+                if (colonIndex > 0) {
+                  const description = line.substring(0, colonIndex).trim();
+                  let code = line.substring(colonIndex + 1).trim();
+
+                  // 检查描述是否包含查询词
+                  if (description.toLowerCase().includes(queryLower) && code) {
+                    // 清理代码字符串（移除空格和引号）
+                    code = code.replace(/\s+/g, '').replace(/['"]/g, '');
+
+                    const isPostImg = code.includes('/');
+                    const imageUrl = isPostImg ? `https://i.postimg.cc/${code}` : `https://files.catbox.moe/${code}`;
+
+                    results.push({ description, imageUrl });
+
+                    // 最多返回15个结果
+                    if (results.length >= 15) {
+                      return results;
+                    }
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            console.error('[表情包推荐] 搜索失败:', error);
+          }
+
+          return results;
+        }
+
+        renderUI();
+
+        // 监听DOM变化，为新创建的卡片添加sticker-suggestions
+        const observer = new MutationObserver(() => {
+          const allCards = container.querySelectorAll('.message-card');
+          allCards.forEach(card => {
+            if (!card.querySelector('.sticker-suggestions')) {
+              const suggestionsEl = document.createElement('div');
+              suggestionsEl.className = 'sticker-suggestions';
+              card.appendChild(suggestionsEl);
+            }
+          });
+        });
+        observer.observe(container, { childList: true, subtree: true });
+      })();
+    </script>
+  </body>
+</html>
