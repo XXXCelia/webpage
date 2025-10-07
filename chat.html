@@ -1030,16 +1030,21 @@
     </div>
     <script>
       (function () {
-        // 支持外部加载：优先从父文档获取数据，否则使用模板占位符
+        // 支持两种使用方式：
+        // 1. 直接在酒馆中使用（通过正则替换 $1）
+        // 2. 通过 load() 加载（从父文档的 #message-data 元素获取数据）
         let rawData = '';
-        if (window.parent && window.parent !== window && window.parent.document.getElementById('message-data')) {
-          // 从父文档的数据容器读取
-          rawData = window.parent.document.getElementById('message-data').textContent || '';
-        } else if (document.getElementById('message-data')) {
-          // 从当前文档的数据容器读取
-          rawData = document.getElementById('message-data').textContent || '';
-        } else {
-          // 使用模板占位符（直接复制到酒馆时使用）
+
+        // 方式1：从父文档或当前文档的数据容器获取
+        if (window.parent && window.parent !== window) {
+          const parentDataEl = window.parent.document.getElementById('message-data');
+          if (parentDataEl) {
+            rawData = parentDataEl.textContent || parentDataEl.innerText || '';
+          }
+        }
+
+        // 方式2：如果没有从父文档获取到数据，使用模板占位符
+        if (!rawData || rawData.trim() === '') {
           rawData = `$1`;
         }
 
