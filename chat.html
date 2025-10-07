@@ -1030,7 +1030,19 @@
     </div>
     <script>
       (function () {
-        let rawData = `$1`;
+        // 支持外部加载：优先从父文档获取数据，否则使用模板占位符
+        let rawData = '';
+        if (window.parent && window.parent !== window && window.parent.document.getElementById('message-data')) {
+          // 从父文档的数据容器读取
+          rawData = window.parent.document.getElementById('message-data').textContent || '';
+        } else if (document.getElementById('message-data')) {
+          // 从当前文档的数据容器读取
+          rawData = document.getElementById('message-data').textContent || '';
+        } else {
+          // 使用模板占位符（直接复制到酒馆时使用）
+          rawData = `$1`;
+        }
+
         const container = document.getElementById('message-container');
         const activeModes = {};
 
