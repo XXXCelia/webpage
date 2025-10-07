@@ -1040,12 +1040,14 @@
           const parentDataEl = window.parent.document.getElementById('message-data');
           if (parentDataEl) {
             rawData = parentDataEl.textContent || parentDataEl.innerText || '';
+            console.log('[消息界面] 从父文档获取数据，长度:', rawData.length);
           }
         }
 
         // 方式2：如果没有从父文档获取到数据，使用模板占位符
         if (!rawData || rawData.trim() === '') {
           rawData = `$1`;
+          console.log('[消息界面] 使用内联数据');
         }
 
         const container = document.getElementById('message-container');
